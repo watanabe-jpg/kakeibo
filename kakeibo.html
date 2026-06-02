@@ -231,10 +231,18 @@
 
 <script>
 const STORE_KEY = 'kakeibo_v1';
-function load() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || defaultData(); } catch(e) { return defaultData(); } }
+function load() { try { return migrate(JSON.parse(localStorage.getItem(STORE_KEY)) || defaultData()); } catch(e) { return defaultData(); } }
 function defaultData() { return { limit:100000, transportBudget:15000, entries:[], month:currentMonth(), theme:'system' }; }
 function currentMonth() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function save(data) { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
+function migrate(data) {
+  // 日付がないエントリに「日付不明」を補完
+  data.entries = data.entries.map(e => {
+    if (!e.date) e.date = '—';
+    return e;
+  });
+  return data;
+}
 function fmt(n) { return '¥' + Math.abs(n).toLocaleString('ja-JP'); }
 function fmtShort(n) { if(n>=10000) return '¥'+(n/10000).toFixed(n%10000===0?0:1)+'万'; return '¥'+n.toLocaleString('ja-JP'); }
 
