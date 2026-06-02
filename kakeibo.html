@@ -274,7 +274,7 @@ function addExpense() {
   const data = load();
   if (data.month !== currentMonth()) { data.entries = []; data.month = currentMonth(); }
   const now = new Date();
-  data.entries.unshift({ id:Date.now(), amount:val, category:selectedCategory, memo:memo, time:`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}` });
+  data.entries.unshift({ id:Date.now(), amount:val, category:selectedCategory, memo:memo, date:`${now.getMonth()+1}/${now.getDate()}`,time:`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}` });
   save(data);
   document.getElementById('amountInput').value = '';
   document.getElementById('memoInput').value = '';
@@ -364,7 +364,7 @@ function render() {
     list.innerHTML = data.entries.slice(0,50).map(e => `
       <div class="history-item" onclick="openEditModal(${e.id})">
         <div class="history-left">
-          <div class="history-cat ${e.category==='transport'?'transport':''}">${e.category==='transport'?'🚃 交通費':'🛒 私用'} · ${e.time}</div>
+          <div class="history-cat ${e.category==='transport'?'transport':''}">${e.category==='transport'?'🚃 交通費':'🛒 私用'} · ${e.date||''} ${e.time}</div>
           ${e.memo?`<div class="history-memo">${e.memo}</div>`:'<div class="history-memo" style="color:var(--text3)">—</div>'}
         </div>
         <div class="history-right">
