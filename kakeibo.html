@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="残り枠">
+<title>残り枠</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0f0f0f; --surface:#1a1a1a; --surface2:#242424; --border:#2e2e2e;
+    --text:#f0f0f0; --text2:#888; --text3:#555;
+    --green:#00e676; --amber:#ffab40; --red:#ff5252;
+    --amber-dim:#3d2e1a; --red-dim:#3d1a1a;
+    --mono:'DM Mono',monospace; --sans:'Noto Sans JP',sans-serif;
+  }
+  html[data-theme="light"] {
+    --bg:#f5f5f0; --surface:#ffffff; --surface2:#f0f0eb; --border:#e0e0d8;
+    --text:#1a1a1a; --text2:#666; --text3:#aaa;
+    --green:#00a854; --amber:#e08000; --red:#d93025;
+    --amber-dim:#fff3e0; --red-dim:#fce8e6;
+  }
+  @media (prefers-color-scheme: light) {
+    html[data-theme="system"] {
+      --bg:#f5f5f0; --surface:#ffffff; --surface2:#f0f0eb; --border:#e0e0d8;
+      --text:#1a1a1a; --text2:#666; --text3:#aaa;
+      --green:#00a854; --amber:#e08000; --red:#d93025;
+      --amber-dim:#fff3e0; --red-dim:#fce8e6;
+    }
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; max-width:430px; margin:0 auto; padding-bottom:120px; transition:background 0.2s, color 0.2s; }
+
+  .header { padding:56px 20px 20px; display:flex; justify-content:space-between; align-items:flex-end; }
+  .header-title { font-size:11px; letter-spacing:0.2em; color:var(--text3); text-transform:uppercase; font-family:var(--mono); }
+  .header-month { font-size:13px; color:var(--text2); font-family:var(--mono); }
+
+  .hero { padding:8px 20px 28px; }
+  .hero-label { font-size:11px; color:var(--text3); letter-spacing:0.15em; font-family:var(--mono); margin-bottom:6px; }
+  .hero-amount { font-size:52px; font-weight:700; font-family:var(--mono); line-height:1; letter-spacing:-0.02em; transition:color 0.3s; }
+  .hero-amount.ok { color:var(--green); }
+  .hero-amount.warn { color:var(--amber); }
+  .hero-amount.over { color:var(--red); }
+  .hero-sub { font-size:12px; color:var(--text3); font-family:var(--mono); margin-top:6px; }
+
+  .progress-wrap { margin:0 20px 24px; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+  .progress-bar { height:100%; border-radius:2px; transition:width 0.4s ease, background 0.3s; }
+
+  .stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:0 20px 24px; }
+  .stat { background:var(--surface); border-radius:12px; padding:12px 10px; border:1px solid var(--border); }
+  .stat-label { font-size:10px; color:var(--text3); font-family:var(--mono); letter-spacing:0.08em; margin-bottom:5px; }
+  .stat-value { font-size:15px; font-weight:500; font-family:var(--mono); color:var(--text); }
+  .stat-value.transport { color:var(--amber); }
+
+  .input-section { padding:0 20px 20px; }
+  .input-card { background:var(--surface); border-radius:16px; padding:18px; border:1px solid var(--border); }
+  .input-label { font-size:11px; color:var(--text3); font-family:var(--mono); letter-spacing:0.15em; margin-bottom:12px; }
+  .amount-input-wrap { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+  .yen-sign { font-size:24px; color:var(--text3); font-family:var(--mono); }
+  .amount-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:28px; font-family:var(--mono); font-weight:500; padding:10px 14px; outline:none; width:100%; -webkit-appearance:none; }
+  .amount-input:focus { border-color:var(--green); }
+  .memo-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:15px; font-family:var(--sans); padding:10px 14px; outline:none; margin-bottom:14px; -webkit-appearance:none; }
+  .memo-input:focus { border-color:var(--green); }
+  .memo-input::placeholder { color:var(--text3); }
+
+  .quick-amounts { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .quick-btn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text2); font-size:13px; font-family:var(--mono); padding:7px 12px; cursor:pointer; transition:all 0.15s; -webkit-appearance:none; }
+  .quick-btn:active { background:var(--border); transform:scale(0.96); }
+
+  .cat-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+  .cat-btn { background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text2); font-size:13px; font-family:var(--sans); padding:10px; cursor:pointer; transition:all 0.15s; text-align:center; -webkit-appearance:none; }
+  .cat-btn.active { border-color:var(--green); color:var(--green); background:rgba(0,168,84,0.08); }
+  .cat-btn.transport-btn.active { border-color:var(--amber); color:var(--amber); background:rgba(224,128,0,0.08); }
+  .cat-btn:active { transform:scale(0.97); }
+
+  .submit-btn { width:100%; background:var(--green); color:#fff; border:none; border-radius:12px; font-size:16px; font-weight:700; font-family:var(--sans); padding:16px; cursor:pointer; transition:all 0.15s; -webkit-appearance:none; letter-spacing:0.05em; }
+  html[data-theme="dark"] .submit-btn, html[data-theme="system"] .submit-btn { color:#000; }
+  @media (prefers-color-scheme: dark) { html[data-theme="system"] .submit-btn { color:#000; } }
+  .submit-btn:active { transform:scale(0.98); opacity:0.9; }
+  .submit-btn.transport-mode { background:var(--amber); }
+
+  .history-section { padding:0 20px; }
+  .section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .section-title { font-size:11px; color:var(--text3); font-family:var(--mono); letter-spacing:0.15em; }
+  .clear-btn { font-size:11px; color:var(--text3); background:none; border:none; font-family:var(--mono); cursor:pointer; padding:4px 8px; -webkit-appearance:none; }
+  .clear-btn:active { color:var(--red); }
+
+  .history-list { display:flex; flex-direction:column; gap:6px; }
+  .history-item { background:var(--surface); border-radius:10px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border); animation:slideIn 0.2s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+  .history-left { display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; }
+  .history-cat { font-size:11px; color:var(--text3); font-family:var(--mono); }
+  .history-cat.transport { color:var(--amber); }
+  .history-memo { font-size:13px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+  .history-right { display:flex; align-items:center; flex-shrink:0; }
+  .history-amount { font-size:18px; font-weight:500; font-family:var(--mono); color:var(--text); }
+  .history-delete { background:none; border:none; color:var(--text3); font-size:18px; cursor:pointer; padding:4px 8px; margin-left:4px; -webkit-appearance:none; }
+  .history-delete:active { color:var(--red); }
+  .empty-state { text-align:center; color:var(--text3); font-size:13px; font-family:var(--mono); padding:24px 0; }
+
+  .alert { margin:0 20px 16px; padding:12px 16px; border-radius:10px; font-size:13px; font-family:var(--sans); display:none; }
+  .alert.warn { background:var(--amber-dim); color:var(--amber); border:1px solid rgba(224,128,0,0.3); display:block; }
+  .alert.over { background:var(--red-dim); color:var(--red); border:1px solid rgba(217,48,37,0.3); display:block; }
+
+  /* Settings modal */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; display:none; align-items:flex-end; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border-radius:20px 20px 0 0; padding:24px 20px 40px; width:100%; border-top:1px solid var(--border); }
+  .modal-title { font-size:13px; color:var(--text2); font-family:var(--mono); letter-spacing:0.15em; margin-bottom:20px; text-align:center; }
+  .modal-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .modal-row label { font-size:14px; color:var(--text2); font-family:var(--sans); }
+  .modal-input { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:16px; font-family:var(--mono); padding:8px 12px; width:140px; text-align:right; outline:none; -webkit-appearance:none; }
+  .modal-input:focus { border-color:var(--green); }
+  .modal-divider { height:1px; background:var(--border); margin:16px 0; }
+  .modal-section-label { font-size:11px; color:var(--text3); font-family:var(--mono); letter-spacing:0.15em; margin-bottom:12px; }
+
+  /* Theme selector */
+  .theme-selector { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px; }
+  .theme-opt { background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text2); font-size:13px; font-family:var(--sans); padding:10px 6px; cursor:pointer; text-align:center; -webkit-appearance:none; transition:all 0.15s; }
+  .theme-opt.active { border-color:var(--green); color:var(--green); background:rgba(0,168,84,0.08); }
+  .theme-opt:active { transform:scale(0.97); }
+
+  .modal-save { width:100%; background:var(--green); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:700; padding:14px; cursor:pointer; margin-top:8px; -webkit-appearance:none; }
+  html[data-theme="dark"] .modal-save { color:#000; }
+  html[data-theme="system"] .modal-save { color:#000; }
+  @media (prefers-color-scheme: dark) { html[data-theme="system"] .modal-save { color:#000; } }
+
+  .settings-fab { position:fixed; bottom:28px; right:20px; width:48px; height:48px; background:var(--surface); border:1px solid var(--border); border-radius:50%; color:var(--text3); font-size:20px; display:flex; align-items:center; justify-content:center; cursor:pointer; -webkit-appearance:none; z-index:50; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">残り枠</div>
+  <div class="header-month" id="monthLabel"></div>
+</div>
+
+<div class="hero">
+  <div class="hero-label">PRIVATE · REMAINING</div>
+  <div class="hero-amount ok" id="heroAmount">¥0</div>
+  <div class="hero-sub" id="heroSub">上限を設定してください</div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-bar" id="progressBar" style="width:0%"></div>
+</div>
+
+<div class="alert" id="alertBanner"></div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-label">上限</div><div class="stat-value" id="statLimit">—</div></div>
+  <div class="stat"><div class="stat-label">使用済</div><div class="stat-value" id="statSpent">¥0</div></div>
+  <div class="stat"><div class="stat-label">交通費</div><div class="stat-value transport" id="statTransport">¥0</div></div>
+</div>
+
+<div class="input-section">
+  <div class="input-card">
+    <div class="input-label">ADD EXPENSE</div>
+    <div class="amount-input-wrap">
+      <span class="yen-sign">¥</span>
+      <input type="number" class="amount-input" id="amountInput" placeholder="0" inputmode="numeric">
+    </div>
+    <input type="text" class="memo-input" id="memoInput" placeholder="どこで何を（例：セブン　コーヒー）" maxlength="30">
+    <div class="quick-amounts">
+      <button class="quick-btn" onclick="setQuick(500)">500</button>
+      <button class="quick-btn" onclick="setQuick(1000)">1,000</button>
+      <button class="quick-btn" onclick="setQuick(1500)">1,500</button>
+      <button class="quick-btn" onclick="setQuick(2000)">2,000</button>
+      <button class="quick-btn" onclick="setQuick(3000)">3,000</button>
+      <button class="quick-btn" onclick="setQuick(5000)">5,000</button>
+    </div>
+    <div class="cat-row">
+      <button class="cat-btn active" id="catPrivate" onclick="setCategory('private')">🛒 私用</button>
+      <button class="cat-btn transport-btn" id="catTransport" onclick="setCategory('transport')">🚃 交通費</button>
+    </div>
+    <button class="submit-btn" id="submitBtn" onclick="addExpense()">記録する</button>
+  </div>
+</div>
+
+<div class="history-section">
+  <div class="section-header">
+    <div class="section-title">HISTORY</div>
+    <button class="clear-btn" onclick="confirmClearMonth()">月リセット</button>
+  </div>
+  <div class="history-list" id="historyList"></div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-title">SETTINGS</div>
+    <div class="modal-row">
+      <label>カード上限</label>
+      <input type="number" class="modal-input" id="settingLimit" inputmode="numeric" placeholder="100000">
+    </div>
+    <div class="modal-row">
+      <label>交通費確保額</label>
+      <input type="number" class="modal-input" id="settingTransport" inputmode="numeric" placeholder="15000">
+    </div>
+    <div class="modal-divider"></div>
+    <div class="modal-section-label">THEME</div>
+    <div class="theme-selector">
+      <button class="theme-opt" id="themeLight" onclick="setTheme('light')">☀️ ライト</button>
+      <button class="theme-opt" id="themeDark" onclick="setTheme('dark')">🌙 ダーク</button>
+      <button class="theme-opt active" id="themeSystem" onclick="setTheme('system')">⚙️ システム</button>
+    </div>
+    <button class="modal-save" onclick="saveSettings()">保存</button>
+  </div>
+</div>
+
+<button class="settings-fab" onclick="openModal()">⚙</button>
+
+<script>
+const STORE_KEY = 'kakeibo_v1';
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || defaultData(); }
+  catch(e) { return defaultData(); }
+}
+function defaultData() {
+  return { limit:100000, transportBudget:15000, entries:[], month:currentMonth(), theme:'system' };
+}
+function currentMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function save(data) { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
+function fmt(n) { return '¥' + Math.abs(n).toLocaleString('ja-JP'); }
+function fmtShort(n) {
+  if (n >= 10000) return '¥' + (n/10000).toFixed(n%10000===0?0:1) + '万';
+  return '¥' + n.toLocaleString('ja-JP');
+}
+
+let selectedCategory = 'private';
+let pendingTheme = 'system';
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+}
+
+function setTheme(theme) {
+  pendingTheme = theme;
+  ['light','dark','system'].forEach(t => {
+    document.getElementById('theme' + t.charAt(0).toUpperCase() + t.slice(1)).className =
+      'theme-opt' + (t === theme ? ' active' : '');
+  });
+}
+
+function setCategory(cat) {
+  selectedCategory = cat;
+  document.getElementById('catPrivate').className = 'cat-btn' + (cat==='private'?' active':'');
+  document.getElementById('catTransport').className = 'cat-btn transport-btn' + (cat==='transport'?' active':'');
+  document.getElementById('submitBtn').className = 'submit-btn' + (cat==='transport'?' transport-mode':'');
+}
+
+function setQuick(amount) { document.getElementById('amountInput').value = amount; }
+
+function addExpense() {
+  const val = parseInt(document.getElementById('amountInput').value);
+  if (!val || val <= 0) { document.getElementById('amountInput').focus(); return; }
+  const memo = document.getElementById('memoInput').value.trim();
+  const data = load();
+  if (data.month !== currentMonth()) { data.entries = []; data.month = currentMonth(); }
+  const now = new Date();
+  data.entries.unshift({
+    id: Date.now(), amount: val, category: selectedCategory, memo: memo,
+    time: `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+  });
+  save(data);
+  document.getElementById('amountInput').value = '';
+  document.getElementById('memoInput').value = '';
+  render();
+}
+
+function deleteEntry(id) {
+  const data = load();
+  data.entries = data.entries.filter(e => e.id !== id);
+  save(data); render();
+}
+
+function confirmClearMonth() {
+  if (confirm('今月の記録をすべてリセットしますか？')) {
+    const data = load();
+    data.entries = []; data.month = currentMonth();
+    save(data); render();
+  }
+}
+
+function render() {
+  const data = load();
+  if (data.month !== currentMonth()) { data.entries = []; data.month = currentMonth(); save(data); }
+
+  const privateLimit = data.limit - data.transportBudget;
+  const transportSpent = data.entries.filter(e=>e.category==='transport').reduce((s,e)=>s+e.amount,0);
+  const privateSpent = data.entries.filter(e=>e.category==='private').reduce((s,e)=>s+e.amount,0);
+  const remaining = privateLimit - privateSpent;
+  const pct = privateLimit > 0 ? Math.min((privateSpent/privateLimit)*100,100) : 0;
+
+  const d = new Date();
+  document.getElementById('monthLabel').textContent = `${d.getMonth()+1}月`;
+
+  const heroEl = document.getElementById('heroAmount');
+  heroEl.textContent = fmt(remaining);
+  heroEl.className = 'hero-amount ' + (remaining < 0 ? 'over' : pct >= 80 ? 'warn' : 'ok');
+  document.getElementById('heroSub').textContent = `私用上限 ${fmtShort(privateLimit)} のうち ${fmtShort(privateSpent)} 使用`;
+
+  const bar = document.getElementById('progressBar');
+  bar.style.width = pct + '%';
+  bar.style.background = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--amber)' : 'var(--green)';
+
+  const alert = document.getElementById('alertBanner');
+  if (remaining < 0) {
+    alert.textContent = `⚠️ 上限を ${fmt(-remaining)} オーバーしています`;
+    alert.className = 'alert over';
+  } else if (pct >= 80) {
+    alert.textContent = `残り枠が ${Math.round(100-pct)}% を切りました`;
+    alert.className = 'alert warn';
+  } else { alert.className = 'alert'; }
+
+  document.getElementById('statLimit').textContent = fmtShort(data.limit);
+  document.getElementById('statSpent').textContent = fmtShort(privateSpent);
+  document.getElementById('statTransport').textContent = fmtShort(transportSpent);
+
+  const list = document.getElementById('historyList');
+  if (data.entries.length === 0) {
+    list.innerHTML = '<div class="empty-state">まだ記録がありません</div>';
+  } else {
+    list.innerHTML = data.entries.slice(0,50).map(e => `
+      <div class="history-item">
+        <div class="history-left">
+          <div class="history-cat ${e.category==='transport'?'transport':''}">${e.category==='transport'?'🚃 交通費':'🛒 私用'} · ${e.time}</div>
+          ${e.memo ? `<div class="history-memo">${e.memo}</div>` : '<div class="history-memo" style="color:var(--text3)">—</div>'}
+        </div>
+        <div class="history-right">
+          <div class="history-amount">${fmt(e.amount)}</div>
+          <button class="history-delete" onclick="deleteEntry(${e.id})">×</button>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+function openModal() {
+  const data = load();
+  document.getElementById('settingLimit').value = data.limit;
+  document.getElementById('settingTransport').value = data.transportBudget;
+  pendingTheme = data.theme || 'system';
+  setTheme(pendingTheme);
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay'))
+    document.getElementById('modalOverlay').classList.remove('open');
+}
+function saveSettings() {
+  const data = load();
+  const limit = parseInt(document.getElementById('settingLimit').value);
+  const transport = parseInt(document.getElementById('settingTransport').value);
+  if (limit > 0) data.limit = limit;
+  if (transport >= 0) data.transportBudget = transport;
+  data.theme = pendingTheme;
+  save(data);
+  applyTheme(pendingTheme);
+  document.getElementById('modalOverlay').classList.remove('open');
+  render();
+}
+
+// Init
+const initData = load();
+applyTheme(initData.theme || 'system');
+render();
+</script>
+</body>
+</html>
