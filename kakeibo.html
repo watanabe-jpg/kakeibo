@@ -58,15 +58,18 @@
 
   /* Category breakdown */
   .breakdown-section { padding:0 20px 24px; }
-  .breakdown-title { font-size:11px; color:var(--text3); font-family:var(--mono); letter-spacing:0.15em; margin-bottom:10px; }
-  .breakdown-list { display:flex; flex-direction:column; gap:6px; }
-  .breakdown-item { background:var(--surface); border-radius:10px; padding:10px 14px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+  .breakdown-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; padding:4px 0; -webkit-tap-highlight-color:transparent; }
+  .breakdown-title { font-size:11px; color:var(--text3); font-family:var(--mono); letter-spacing:0.15em; }
+  .breakdown-toggle { font-size:11px; color:var(--text3); font-family:var(--mono); transition:transform 0.25s; display:inline-block; }
+  .breakdown-toggle.open { transform:rotate(180deg); }
+  .breakdown-body { overflow:hidden; max-height:0; transition:max-height 0.3s ease; }
+  .breakdown-body.open { max-height:600px; }
+  .breakdown-list { display:flex; flex-direction:column; gap:6px; padding-top:10px; }
+  .breakdown-item { border-radius:10px; padding:10px 14px; border:1px solid transparent; display:flex; justify-content:space-between; align-items:center; }
   .breakdown-left { display:flex; align-items:center; gap:8px; }
   .breakdown-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
   .breakdown-label { font-size:13px; color:var(--text2); }
-  .breakdown-amount { font-size:14px; font-weight:500; font-family:var(--mono); color:var(--text); }
-  .breakdown-bar-wrap { height:2px; background:var(--border); border-radius:1px; margin-top:6px; overflow:hidden; }
-  .breakdown-bar { height:100%; border-radius:1px; transition:width 0.4s; }
+  .breakdown-amount { font-size:14px; font-weight:500; font-family:var(--mono); }
 
   .input-section { padding:0 20px 20px; }
   .input-card { background:var(--surface); border-radius:16px; padding:18px; border:1px solid var(--border); }
@@ -142,7 +145,7 @@
 <div class="header">
   <div>
     <div class="header-title">残り枠</div>
-    <div class="header-version">v1.6.2</div>
+    <div class="header-version">v1.7.0</div>
   </div>
   <div class="header-month" id="monthLabel"></div>
 </div>
@@ -162,8 +165,13 @@
 </div>
 
 <div class="breakdown-section">
-  <div class="breakdown-title">BREAKDOWN</div>
-  <div class="breakdown-list" id="breakdownList"></div>
+  <div class="breakdown-header" onclick="toggleBreakdown()">
+    <div class="breakdown-title">BREAKDOWN</div>
+    <div class="breakdown-toggle" id="breakdownToggle">▼</div>
+  </div>
+  <div class="breakdown-body" id="breakdownBody">
+    <div class="breakdown-list" id="breakdownList"></div>
+  </div>
 </div>
 
 <div class="input-section">
@@ -357,6 +365,13 @@ function confirmClearMonth() {
   if (confirm('今月の記録をすべてリセットしますか？')) {
     const data = load(); data.entries = []; data.month = currentMonth(); save(data); render();
   }
+}
+
+function toggleBreakdown() {
+  const body = document.getElementById('breakdownBody');
+  const toggle = document.getElementById('breakdownToggle');
+  body.classList.toggle('open');
+  toggle.classList.toggle('open');
 }
 
 function render() {
