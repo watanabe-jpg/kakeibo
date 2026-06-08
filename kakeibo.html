@@ -142,7 +142,7 @@
 <div class="header">
   <div>
     <div class="header-title">残り枠</div>
-    <div class="header-version">v1.6.1</div>
+    <div class="header-version">v1.6.2</div>
   </div>
   <div class="header-month" id="monthLabel"></div>
 </div>
@@ -371,7 +371,9 @@ function render() {
   const pct = privateLimit > 0 ? Math.min((privateSpent/privateLimit)*100,100) : 0;
 
   const d = new Date();
-  document.getElementById('monthLabel').textContent = `${d.getMonth()+1}月`;
+  const lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  const remainDays = lastDay - d.getDate();
+  document.getElementById('monthLabel').textContent = `${d.getMonth()+1}月 / 残り${remainDays}日`;
 
   const heroEl = document.getElementById('heroAmount');
   heroEl.textContent = fmt(remaining);
