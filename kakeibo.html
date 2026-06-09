@@ -210,7 +210,7 @@
     <div class="header">
       <div>
         <div class="header-title">残り枠</div>
-        <div class="header-version">v1.8.0</div>
+        <div class="header-version">v1.8.1</div>
       </div>
       <div class="header-right">
         <div class="header-month" id="headerMonth"></div>
@@ -307,7 +307,9 @@
       <label style="font-size:14px;color:var(--text2);display:block;margin-bottom:8px;">メモ</label>
       <input type="text" class="modal-input-full" id="editMemo" maxlength="30" placeholder="どこで何を">
     </div>
-    <div class="modal-section-label">カテゴリ</div>
+    <div class="modal-section-label">メモカテゴリ</div>
+    <div class="memo-cats" id="editMemoCats" style="margin-bottom:16px;"></div>
+    <div class="modal-section-label">支払区分</div>
     <div class="edit-cat-row">
       <button class="cat-btn active" id="editCatPrivate" onclick="setEditCat('private')">🛒 私用</button>
       <button class="cat-btn transport-btn" id="editCatTransport" onclick="setEditCat('transport')">🚃 交通費</button>
@@ -391,8 +393,20 @@ function renderMemoCats() {
   `).join('');
 }
 
+let editingMemoCat = 'auto';
+
+function renderEditMemoCats() {
+  const wrap = document.getElementById('editMemoCats');
+  wrap.innerHTML = CATS.filter(c=>c.key!=='other').map(c => `
+    <button class="memo-cat-btn${editingMemoCat===c.key?' active':''}" onclick="setEditMemoCat('${c.key}')">${c.emoji} ${c.label}</button>
+  `).join('');
+}
+function setEditMemoCat(key) {
+  editingMemoCat = editingMemoCat === key ? 'auto' : key;
+  renderEditMemoCats();
+}
+
 function addExpense() {
-  const val = parseInt(document.getElementById('amountInput').value);
   if (!val || val <= 0) { document.getElementById('amountInput').focus(); return; }
   const memo = document.getElementById('memoInput').value.trim();
   const data = load();
@@ -424,7 +438,9 @@ function openEditModal(id) {
   editingId = id;
   document.getElementById('editAmount').value = entry.amount;
   document.getElementById('editMemo').value = entry.memo || '';
+  editingMemoCat = entry.catOverride || 'auto';
   setEditCat(entry.category);
+  renderEditMemoCats();
   document.getElementById('editOverlay').classList.add('open');
 }
 function closeEditModal(e) {
@@ -437,7 +453,7 @@ function saveEdit() {
   const memo = document.getElementById('editMemo').value.trim();
   const data = load();
   const idx = data.entries.findIndex(e => e.id === editingId);
-  if (idx !== -1) { data.entries[idx].amount = val; data.entries[idx].memo = memo; data.entries[idx].category = editingCat; }
+  if (idx !== -1) { data.entries[idx].amount = val; data.entries[idx].memo = memo; data.entries[idx].category = editingCat; data.entries[idx].catOverride = editingMemoCat; }
   save(data);
   document.getElementById('editOverlay').classList.remove('open');
   render();
