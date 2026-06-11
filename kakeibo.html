@@ -407,6 +407,7 @@ function setEditMemoCat(key) {
 }
 
 function addExpense() {
+  const val = parseInt(document.getElementById('amountInput').value);
   if (!val || val <= 0) { document.getElementById('amountInput').focus(); return; }
   const memo = document.getElementById('memoInput').value.trim();
   const data = load();
