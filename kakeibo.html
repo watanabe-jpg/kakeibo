@@ -210,7 +210,7 @@
     <div class="header">
       <div>
         <div class="header-title">残り枠</div>
-        <div class="header-version">v1.8.2</div>
+        <div class="header-version">v1.9.0</div>
       </div>
       <div class="header-right">
         <div style="display:flex;align-items:center;gap:10px;">
@@ -356,11 +356,26 @@ function detectCat(memo, override) {
 function getCat(key) { return CATS.find(c => c.key === key) || CATS[CATS.length-1]; }
 
 function load() { try { return migrate(JSON.parse(localStorage.getItem(STORE_KEY)) || defaultData()); } catch(e) { return defaultData(); } }
-function defaultData() { return { limit:100000, transportBudget:15000, entries:[], month:currentMonth(), theme:'system' }; }
+function defaultData() { return { limit:100000, transportBudget:15000, months:{}, theme:'system' }; }
 function currentMonth() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function save(data) { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
+function getEntries(data, month) { return data.months[month] || []; }
+function setEntries(data, month, entries) { data.months[month] = entries; }
 function migrate(data) {
-  data.entries = data.entries.map(e => { if (!e.date) e.date = '—'; return e; });
+  // 旧形式（entries直下）→ 新形式（months別）に移行
+  if (!data.months) data.months = {};
+  if (data.entries && data.entries.length > 0) {
+    const m = data.month || currentMonth();
+    if (!data.months[m]) data.months[m] = [];
+    data.months[m] = [...data.entries, ...data.months[m]];
+    delete data.entries;
+    delete data.month;
+    save(data);
+  }
+  // 日付なしエントリの補完
+  Object.keys(data.months).forEach(m => {
+    data.months[m] = data.months[m].map(e => { if (!e.date) e.date = '—'; return e; });
+  });
   return data;
 }
 function fmt(n) { return '¥' + Math.abs(n).toLocaleString('ja-JP'); }
@@ -416,9 +431,11 @@ function setEditMemoCat(key) {
 function shareLog() {
   const data = load();
   const d = new Date();
+  const cm = currentMonth();
+  const allEntries = getEntries(data, cm);
   const privateLimit = data.limit - data.transportBudget;
-  const privateEntries = data.entries.filter(e=>e.category==='private');
-  const transportSpent = data.entries.filter(e=>e.category==='transport').reduce((s,e)=>s+e.amount,0);
+  const privateEntries = allEntries.filter(e=>e.category==='private');
+  const transportSpent = allEntries.filter(e=>e.category==='transport').reduce((s,e)=>s+e.amount,0);
   const privateSpent = privateEntries.reduce((s,e)=>s+e.amount,0);
   const remaining = privateLimit - privateSpent;
 
@@ -431,7 +448,7 @@ function shareLog() {
     `交通費：${fmt(transportSpent)}`,
     ``,
     `── 明細 ──`,
-    ...data.entries.map(e => `${e.date||'—'} ${e.time}　${e.category==='transport'?'交通費':getCat(detectCat(e.memo,e.catOverride)).label}　${fmt(e.amount)}　${e.memo||''}`)
+    ...allEntries.map(e => `${e.date||'—'} ${e.time}　${e.category==='transport'?'交通費':getCat(detectCat(e.memo,e.catOverride)).label}　${fmt(e.amount)}　${e.memo||''}`)
   ];
   const text = lines.join('\n');
 
@@ -447,14 +464,16 @@ function addExpense() {
   if (!val || val <= 0) { document.getElementById('amountInput').focus(); return; }
   const memo = document.getElementById('memoInput').value.trim();
   const data = load();
-  if (data.month !== currentMonth()) { data.entries = []; data.month = currentMonth(); }
+  const cm = currentMonth();
+  const entries = getEntries(data, cm);
   const now = new Date();
-  data.entries.unshift({
+  entries.unshift({
     id:Date.now(), amount:val, category:selectedCategory, memo:memo,
     catOverride: selectedMemoCat,
     date:`${now.getMonth()+1}/${now.getDate()}`,
     time:`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
   });
+  setEntries(data, cm, entries);
   save(data);
   document.getElementById('amountInput').value = '';
   document.getElementById('memoInput').value = '';
@@ -470,7 +489,8 @@ function toggleBreakdown() {
 
 function openEditModal(id) {
   const data = load();
-  const entry = data.entries.find(e => e.id === id);
+  const cm = currentMonth();
+  const entry = getEntries(data, cm).find(e => e.id === id);
   if (!entry) return;
   editingId = id;
   document.getElementById('editAmount').value = entry.amount;
@@ -489,8 +509,11 @@ function saveEdit() {
   if (!val || val <= 0) { document.getElementById('editAmount').focus(); return; }
   const memo = document.getElementById('editMemo').value.trim();
   const data = load();
-  const idx = data.entries.findIndex(e => e.id === editingId);
-  if (idx !== -1) { data.entries[idx].amount = val; data.entries[idx].memo = memo; data.entries[idx].category = editingCat; data.entries[idx].catOverride = editingMemoCat; }
+  const cm = currentMonth();
+  const entries = getEntries(data, cm);
+  const idx = entries.findIndex(e => e.id === editingId);
+  if (idx !== -1) { entries[idx].amount = val; entries[idx].memo = memo; entries[idx].category = editingCat; entries[idx].catOverride = editingMemoCat; }
+  setEntries(data, cm, entries);
   save(data);
   document.getElementById('editOverlay').classList.remove('open');
   render();
@@ -498,24 +521,28 @@ function saveEdit() {
 function deleteFromEdit() {
   if (!confirm('この項目を削除しますか？')) return;
   const data = load();
-  data.entries = data.entries.filter(e => e.id !== editingId);
+  const cm = currentMonth();
+  setEntries(data, cm, getEntries(data, cm).filter(e => e.id !== editingId));
   save(data);
   document.getElementById('editOverlay').classList.remove('open');
   render();
 }
 function confirmClearMonth() {
   if (confirm('今月の記録をすべてリセットしますか？')) {
-    const data = load(); data.entries = []; data.month = currentMonth(); save(data); render();
+    const data = load();
+    setEntries(data, currentMonth(), []);
+    save(data); render();
   }
 }
 
 function render() {
   const data = load();
-  if (data.month !== currentMonth()) { data.entries = []; data.month = currentMonth(); save(data); }
+  const cm = currentMonth();
+  const allEntries = getEntries(data, cm);
 
   const privateLimit = data.limit - data.transportBudget;
-  const privateEntries = data.entries.filter(e=>e.category==='private');
-  const transportSpent = data.entries.filter(e=>e.category==='transport').reduce((s,e)=>s+e.amount,0);
+  const privateEntries = allEntries.filter(e=>e.category==='private');
+  const transportSpent = allEntries.filter(e=>e.category==='transport').reduce((s,e)=>s+e.amount,0);
   const privateSpent = privateEntries.reduce((s,e)=>s+e.amount,0);
   const remaining = privateLimit - privateSpent;
   const pct = privateLimit > 0 ? Math.min((privateSpent/privateLimit)*100,100) : 0;
@@ -567,10 +594,10 @@ function render() {
 
   // History
   const list = document.getElementById('historyList');
-  if (data.entries.length === 0) {
+  if (allEntries.length === 0) {
     list.innerHTML = '<div class="empty-state">まだ記録がありません</div>';
   } else {
-    list.innerHTML = data.entries.slice(0,50).map(e => {
+    list.innerHTML = allEntries.slice(0,50).map(e => {
       let bg, border, catColor, catLabel;
       if (e.category === 'transport') {
         bg='rgba(255,171,64,0.08)'; border='rgba(255,171,64,0.2)'; catColor='var(--amber)'; catLabel='🚃 交通費';
