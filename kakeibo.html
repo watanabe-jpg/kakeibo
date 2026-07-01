@@ -183,7 +183,7 @@
   <div class="header">
     <div class="header-left">
       <div class="header-title">残り枠</div>
-      <div class="header-version">v2.1.0</div>
+      <div class="header-version">v2.1.1</div>
     </div>
     <div class="header-right">
       <button class="share-btn" onclick="shareLog()">
@@ -368,7 +368,7 @@ function fmt(n) { return '¥' + Math.abs(n).toLocaleString('ja-JP'); }
 let viewMonth = currentMonth();
 function monthToLabel(ym) {
   const [y, m] = ym.split('-');
-  return `${parseInt(m)}月`;
+  return `${y}年${parseInt(m)}月`;
 }
 function addMonths(ym, delta) {
   const [y, m] = ym.split('-').map(Number);
