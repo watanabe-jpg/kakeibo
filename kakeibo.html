@@ -303,6 +303,30 @@
   </div>
 </div>
 
+<!-- Release notes modal -->
+<div class="modal-overlay" id="releaseOverlay">
+  <div class="modal">
+    <div style="position:relative;">
+      <button onclick="closeRelease()" style="position:absolute;top:-8px;right:-8px;background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1;padding:4px;">×</button>
+    </div>
+    <div class="modal-title">v2.1.1 更新内容</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">
+      <div style="background:var(--red-dim);border:1px solid rgba(217,48,37,0.3);border-radius:8px;padding:10px 12px;margin-bottom:14px;color:var(--red);font-size:12px;">
+        ⚠️ v1.9以前のデータについて<br>
+        以前のバージョンでは月が変わるとデータが消える不具合がありました。ご不便をおかけして申し訳ありません。v2.0以降は月別に保存されるため、過去月のデータも残ります。
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div>📅 <b>月ナビゲーション追加</b><br><span style="font-size:12px;color:var(--text3);">過去月を遡って確認できるようになりました</span></div>
+        <div>💾 <b>月別データ保存</b><br><span style="font-size:12px;color:var(--text3);">月をまたいでもデータが消えなくなりました</span></div>
+        <div>🚌 <b>交通費カテゴリ追加</b><br><span style="font-size:12px;color:var(--text3);">タクシー・バス等の私用交通費を管理できます</span></div>
+        <div>🏷️ <b>カテゴリ上書きボタン</b><br><span style="font-size:12px;color:var(--text3);">入力時にカテゴリを手動で指定できます</span></div>
+        <div>⚙️ <b>キーワード自由追加</b><br><span style="font-size:12px;color:var(--text3);">設定からカテゴリのキーワードを追加できます</span></div>
+        <div>📝 <b>文言・表示改善</b><br><span style="font-size:12px;color:var(--text3);">「支払い上限」に変更、年号表示を追加</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <button class="settings-fab" onclick="openModal()">⚙</button>
 
 <script>
@@ -668,10 +692,25 @@ function removeKw(catKey, kw) {
   renderKwSections(data);
 }
 
+const RELEASE_KEY = 'kakeibo_release';
+const CURRENT_VERSION = 'v2.1.1';
+
+function checkRelease() {
+  const seen = localStorage.getItem(RELEASE_KEY);
+  if (seen !== CURRENT_VERSION) {
+    document.getElementById('releaseOverlay').classList.add('open');
+  }
+}
+function closeRelease() {
+  localStorage.setItem(RELEASE_KEY, CURRENT_VERSION);
+  document.getElementById('releaseOverlay').classList.remove('open');
+}
+
 const initData = load();
 applyTheme(initData.theme || 'system');
 renderMemoCats();
 render();
+checkRelease();
 </script>
 </body>
 </html>
