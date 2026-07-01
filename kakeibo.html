@@ -183,7 +183,7 @@
   <div class="header">
     <div class="header-left">
       <div class="header-title">残り枠</div>
-      <div class="header-version">v2.0.0</div>
+      <div class="header-version">v2.1.0</div>
     </div>
     <div class="header-right">
       <button class="share-btn" onclick="shareLog()">
@@ -207,7 +207,7 @@
       <div class="memo-cats" id="memoCats"></div>
       <div class="cat-row">
         <button class="cat-btn active" id="catPrivate" onclick="setCategory('private')">🛒 私用</button>
-        <button class="cat-btn transport-btn" id="catTransport" onclick="setCategory('transport')">🚃 交通費</button>
+        
       </div>
       <button class="submit-btn" id="submitBtn" onclick="addExpense()">記録する</button>
     </div>
@@ -262,14 +262,10 @@
   <div class="modal">
     <div class="modal-title">SETTINGS</div>
     <div class="modal-row">
-      <label>カード上限</label>
+      <label>支払い上限</label>
       <input type="number" class="modal-input" id="settingLimit" inputmode="numeric" placeholder="100000">
     </div>
-    <div class="modal-row">
-      <label>交通費確保額</label>
-      <input type="number" class="modal-input" id="settingTransport" inputmode="numeric" placeholder="15000">
-    </div>
-    <div class="modal-divider"></div>
+<div class="modal-divider"></div>
     <div class="modal-section-label">THEME</div>
     <div class="theme-selector">
       <button class="theme-opt" id="themeLight" onclick="setTheme('light')">☀️ ライト</button>
@@ -300,7 +296,7 @@
     <div class="modal-section-label">支払区分</div>
     <div class="edit-cat-row">
       <button class="cat-btn active" id="editCatPrivate" onclick="setEditCat('private')">🛒 私用</button>
-      <button class="cat-btn transport-btn" id="editCatTransport" onclick="setEditCat('transport')">🚃 交通費</button>
+      
     </div>
     <button class="modal-save" onclick="saveEdit()">保存</button>
     <button class="modal-delete" onclick="deleteFromEdit()">削除</button>
@@ -318,6 +314,7 @@ const DEFAULT_KEYWORDS = {
   super:        ['スーパー','イオン','西友','ライフ','マルエツ','サミット','オーケー','ヨーカドー','ベルク','ロピア','フードワン','まいばすけっと','まいばす','業務スーパー','コープ'],
   ec:           ['ネット通販','amazon','アマゾン','楽天','yahoo','ヤフー','メルカリ','zozotown','ゾゾ','qoo10'],
   food:         ['外食','マクドナルド','マック','mos','モス','すき家','吉野家','松屋','サイゼ','ガスト','デニーズ','餃子','ラーメン','寿司','焼肉','カフェ','スタバ','ドトール'],
+  transit:      ['交通費','タクシー','バス','電車','新幹線','飛行機','Suica','パスモ','IC','高速','駐車場'],
 };
 
 const CAT_DEFS = [
@@ -325,6 +322,7 @@ const CAT_DEFS = [
   { key:'super',       label:'スーパー', emoji:'🛒', color:'#43c59e', bg:'rgba(67,197,158,0.10)', border:'rgba(67,197,158,0.25)' },
   { key:'ec',          label:'ネット通販', emoji:'📦', color:'#ff9757', bg:'rgba(255,151,87,0.10)', border:'rgba(255,151,87,0.25)' },
   { key:'food',        label:'外食',     emoji:'🍜', color:'#f06292', bg:'rgba(240,98,146,0.10)', border:'rgba(240,98,146,0.25)' },
+  { key:'transit',     label:'交通費',   emoji:'🚌', color:'#ab7ae0', bg:'rgba(171,122,224,0.10)', border:'rgba(171,122,224,0.25)' },
   { key:'other',       label:'その他',   emoji:'💳', color:'#888',    bg:'rgba(136,136,136,0.08)', border:'rgba(136,136,136,0.15)' },
 ];
 
@@ -345,7 +343,7 @@ function detectCat(memo, override, data) {
 function getCat(key) { return CAT_DEFS.find(c => c.key === key) || CAT_DEFS[CAT_DEFS.length-1]; }
 
 function load() { try { return migrate(JSON.parse(localStorage.getItem(STORE_KEY)) || defaultData()); } catch(e) { return defaultData(); } }
-function defaultData() { return { limit:100000, transportBudget:15000, months:{}, theme:'system', customKeywords:{} }; }
+function defaultData() { return { limit:100000, months:{}, theme:'system', customKeywords:{} }; }
 function currentMonth() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function save(data) { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
 function getEntries(data, month) { return data.months[month] || []; }
@@ -401,13 +399,12 @@ function setTheme(t) {
 function setCategory(cat) {
   selectedCategory = cat;
   document.getElementById('catPrivate').className = 'cat-btn'+(cat==='private'?' active':'');
-  document.getElementById('catTransport').className = 'cat-btn transport-btn'+(cat==='transport'?' active':'');
-  document.getElementById('submitBtn').className = 'submit-btn'+(cat==='transport'?' transport-mode':'');
+
 }
 function setEditCat(cat) {
   editingCat = cat;
   document.getElementById('editCatPrivate').className = 'cat-btn'+(cat==='private'?' active':'');
-  document.getElementById('editCatTransport').className = 'cat-btn transport-btn'+(cat==='transport'?' active':'');
+
 }
 function setMemoCat(key) {
   selectedMemoCat = selectedMemoCat === key ? 'auto' : key;
@@ -501,18 +498,16 @@ function confirmClearMonth() {
 function shareLog() {
   const data = load();
   const entries = getEntries(data, viewMonth);
-  const privateLimit = data.limit - data.transportBudget;
-  const privateEntries = entries.filter(e=>e.category==='private');
-  const transportSpent = entries.filter(e=>e.category==='transport').reduce((s,e)=>s+e.amount,0);
-  const privateSpent = privateEntries.reduce((s,e)=>s+e.amount,0);
+  const privateLimit = data.limit;
+  const privateSpent = entries.reduce((s,e)=>s+e.amount,0);
   const remaining = privateLimit - privateSpent;
   const [y,m] = viewMonth.split('-');
   const lines = [
     `【残り枠ログ】${y}年${parseInt(m)}月`, '',
-    `私用上限：${fmt(privateLimit)}`, `使用済：${fmt(privateSpent)}`,
-    `残り枠：${fmt(remaining)}`, `交通費：${fmt(transportSpent)}`, '',
+    `支払い上限：${fmt(privateLimit)}`, `使用済：${fmt(privateSpent)}`,
+    `残り枠：${fmt(remaining)}`, '',
     `── 明細 ──`,
-    ...entries.map(e=>`${e.date||'—'} ${e.time}　${e.category==='transport'?'交通費':getCat(detectCat(e.memo,e.catOverride,data)).label}　${fmt(e.amount)}　${e.memo||''}`)
+    ...entries.map(e=>`${e.date||'—'} ${e.time}　${getCat(detectCat(e.memo,e.catOverride,data)).label}　${fmt(e.amount)}　${e.memo||''}`)
   ];
   const text = lines.join('\n');
   if (navigator.share) { navigator.share({ title:'残り枠ログ', text }); }
@@ -524,9 +519,8 @@ function render() {
   const cm = currentMonth();
   const isCurrentMonth = viewMonth === cm;
   const entries = getEntries(data, viewMonth);
-  const privateLimit = data.limit - data.transportBudget;
-  const privateEntries = entries.filter(e=>e.category==='private');
-  const transportSpent = entries.filter(e=>e.category==='transport').reduce((s,e)=>s+e.amount,0);
+  const privateLimit = data.limit;
+  const privateEntries = entries;
   const privateSpent = privateEntries.reduce((s,e)=>s+e.amount,0);
   const remaining = privateLimit - privateSpent;
   const pct = privateLimit > 0 ? Math.min((privateSpent/privateLimit)*100,100) : 0;
@@ -565,7 +559,7 @@ function render() {
   bar.style.background = pct>=100?'var(--red)':pct>=80?'var(--amber)':'var(--green)';
 
   document.getElementById('statsRow').innerHTML =
-    `上限 <span>${fmt(data.limit)}</span> &nbsp;使用済 <span>${fmt(privateSpent)}</span> &nbsp;交通費 <span class="tv">${fmt(transportSpent)}</span>`;
+    `上限 <span>${fmt(data.limit)}</span> &nbsp;使用済 <span>${fmt(privateSpent)}</span>`;
 
   const alert = document.getElementById('alertBanner');
   if (isCurrentMonth && remaining < 0) { alert.textContent=`⚠️ 上限を ${fmt(-remaining)} オーバーしています`; alert.className='alert over'; }
@@ -598,12 +592,8 @@ function render() {
   } else {
     list.innerHTML = entries.slice(0,50).map(e => {
       let bg, border, catColor, catLabel;
-      if (e.category === 'transport') {
-        bg='rgba(255,171,64,0.08)'; border='rgba(255,171,64,0.2)'; catColor='var(--amber)'; catLabel='🚃 交通費';
-      } else {
-        const c = getCat(detectCat(e.memo, e.catOverride, data));
+      const c = getCat(detectCat(e.memo, e.catOverride, data));
         bg=c.bg; border=c.border; catColor=c.color; catLabel=`${c.emoji} ${c.label}`;
-      }
       return `<div class="history-item" style="background:${bg};border-color:${border};" onclick="openEditModal(${e.id})">
         <div class="history-left">
           <div class="history-cat" style="color:${catColor};">${catLabel} · ${e.date||'—'} ${e.time}</div>
@@ -622,7 +612,7 @@ function render() {
 function openModal() {
   const data = load();
   document.getElementById('settingLimit').value = data.limit;
-  document.getElementById('settingTransport').value = data.transportBudget;
+
   pendingTheme = data.theme || 'system';
   setTheme(pendingTheme);
   renderKwSections(data);
@@ -635,9 +625,7 @@ function closeModal(e) {
 function saveSettings() {
   const data = load();
   const limit = parseInt(document.getElementById('settingLimit').value);
-  const transport = parseInt(document.getElementById('settingTransport').value);
   if (limit > 0) data.limit = limit;
-  if (transport >= 0) data.transportBudget = transport;
   data.theme = pendingTheme;
   save(data); applyTheme(pendingTheme);
   document.getElementById('modalOverlay').classList.remove('open');
