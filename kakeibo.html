@@ -173,6 +173,35 @@
   .kw-add-input:focus { border-color:var(--green); }
   .kw-add-btn { background:var(--green); color:#000; border:none; border-radius:8px; font-size:13px; font-weight:700; padding:6px 12px; cursor:pointer; -webkit-appearance:none; }
 
+  /* ── タブ ── */
+  .tab-bar { display:flex; gap:8px; margin:14px 0 0; }
+  .tab-btn { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text3); font-size:13px; font-weight:500; padding:9px; cursor:pointer; -webkit-appearance:none; transition:all 0.15s; }
+  .tab-btn.active { border-color:var(--green); color:var(--green); background:rgba(0,168,84,0.08); }
+
+  /* ── 固定費タブ ── */
+  .flow-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; margin:14px 0 10px; }
+  .flow-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; font-size:13px; color:var(--text2); }
+  .flow-val { font-family:var(--mono); font-size:14px; color:var(--text); }
+  .flow-row.minus .flow-val { color:var(--red); }
+  .flow-row.free .flow-val { color:var(--green); font-weight:500; }
+  .flow-divider { height:1px; background:var(--border); margin:6px 0; }
+  .flow-hero { display:flex; justify-content:space-between; align-items:baseline; padding-top:6px; }
+  .flow-hero-label { font-size:11px; color:var(--text3); font-family:var(--mono); letter-spacing:0.15em; }
+  .flow-hero-val { font-family:var(--mono); font-weight:700; font-size:clamp(24px,7vw,32px); }
+  .flow-hero-val.ok { color:var(--green); }
+  .flow-hero-val.warn { color:var(--amber); }
+  .flow-hero-val.over { color:var(--red); }
+  .income-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .income-row label { font-size:13px; color:var(--text2); flex-shrink:0; }
+  .fc-form-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .fc-cats { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+  .fc-total-line { font-size:11px; font-family:var(--mono); color:var(--text3); margin-bottom:8px; }
+  .fc-total-line span { color:var(--text); }
+  .fc-cum { font-size:10px; color:var(--text3); font-family:var(--mono); margin-top:2px; }
+  .fc-cum b { color:var(--amber); font-weight:500; }
+  .share-fixed-btn { width:100%; background:var(--surface); border:1px solid var(--green); color:var(--green); border-radius:12px; font-size:14px; font-weight:700; padding:12px; cursor:pointer; margin:4px 0 20px; -webkit-appearance:none; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .share-fixed-btn:active { opacity:0.8; }
+
   .settings-fab { position:fixed; bottom:max(env(safe-area-inset-bottom),16px); right:20px; width:44px; height:44px; background:var(--surface); border:1px solid var(--border); border-radius:50%; color:var(--text3); font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; -webkit-appearance:none; z-index:50; }
 </style>
 </head>
@@ -183,7 +212,7 @@
   <div class="header">
     <div class="header-left">
       <div class="header-title">残り枠</div>
-      <div class="header-version">v2.1.1</div>
+      <div class="header-version">v2.2.0</div>
     </div>
     <div class="header-right">
       <button class="share-btn" onclick="shareLog()">
@@ -194,6 +223,14 @@
 
   <!-- スクロール領域 -->
   <div class="pane">
+
+    <!-- タブ -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabBtnExpense" onclick="switchTab('expense')">💳 支出</button>
+      <button class="tab-btn" id="tabBtnFixed" onclick="switchTab('fixed')">📌 固定費</button>
+    </div>
+
+    <div id="tabExpense">
 
     <!-- 入力カード -->
     <div class="input-card">
@@ -254,6 +291,59 @@
       <div class="history-list" id="historyList"></div>
     </div>
 
+    </div><!-- /tabExpense -->
+
+    <!-- 固定費タブ -->
+    <div id="tabFixed" style="display:none;">
+
+      <!-- 収支フロー -->
+      <div class="flow-card">
+        <div class="income-row" style="margin-bottom:8px;">
+          <label>💰 月収（手取り）</label>
+          <input type="number" class="modal-input" id="incomeInput" inputmode="numeric" placeholder="0" onchange="saveIncome()">
+        </div>
+        <div class="flow-divider"></div>
+        <div class="flow-row minus"><span>固定費合計</span><span class="flow-val" id="flowFixed">−¥0</span></div>
+        <div class="flow-divider"></div>
+        <div class="flow-row free"><span>自由に使えるお金</span><span class="flow-val" id="flowFree">¥0</span></div>
+        <div class="flow-row minus"><span>今月の変動費（支出タブ）</span><span class="flow-val" id="flowVar">−¥0</span></div>
+        <div class="flow-divider"></div>
+        <div class="flow-hero">
+          <span class="flow-hero-label">今月の残金</span>
+          <span class="flow-hero-val ok" id="flowRemain">¥0</span>
+        </div>
+      </div>
+
+      <!-- 固定費追加 -->
+      <div class="input-card">
+        <div class="input-label">ADD FIXED COST</div>
+        <input type="text" class="memo-input" id="fcName" placeholder="項目名（例：家賃、Netflix）" maxlength="20">
+        <div class="fc-form-row">
+          <input type="number" class="amount-input" id="fcAmount" style="font-size:18px;" inputmode="numeric" placeholder="月額 ¥">
+          <input type="month" class="memo-input" id="fcStart" style="margin-bottom:0;">
+        </div>
+        <div class="fc-cats" id="fcCats"></div>
+        <button class="submit-btn" onclick="addFixedCost()">固定費を登録</button>
+      </div>
+
+      <!-- 固定費リスト -->
+      <div class="history-section">
+        <div class="section-header">
+          <div class="section-title">FIXED COSTS</div>
+          <div class="fc-total-line">合計 <span id="fcTotalLabel">¥0</span>/月</div>
+        </div>
+        <div class="edit-hint">項目をタップで編集</div>
+        <div class="history-list" id="fcList"></div>
+      </div>
+
+      <!-- 共有 -->
+      <button class="share-fixed-btn" onclick="shareFixed()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        固定費リストを共有（LINE等）
+      </button>
+
+    </div><!-- /tabFixed -->
+
   </div>
 </div>
 
@@ -303,25 +393,42 @@
   </div>
 </div>
 
+<!-- Fixed cost edit modal -->
+<div class="modal-overlay" id="fcEditOverlay" onclick="closeFcEditModal(event)">
+  <div class="modal">
+    <div class="modal-title">EDIT FIXED COST</div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:14px;color:var(--text2);display:block;margin-bottom:8px;">項目名</label>
+      <input type="text" class="modal-input-full" id="fcEditName" maxlength="20">
+    </div>
+    <div class="modal-row">
+      <label>月額</label>
+      <input type="number" class="modal-input" id="fcEditAmount" inputmode="numeric">
+    </div>
+    <div class="modal-row">
+      <label>開始月</label>
+      <input type="month" class="modal-input" id="fcEditStart" style="width:170px;">
+    </div>
+    <div class="modal-section-label">カテゴリ</div>
+    <div class="fc-cats" id="fcEditCats" style="margin-bottom:14px;"></div>
+    <button class="modal-save" onclick="saveFcEdit()">保存</button>
+    <button class="modal-delete" onclick="deleteFcFromEdit()">削除</button>
+  </div>
+</div>
+
 <!-- Release notes modal -->
 <div class="modal-overlay" id="releaseOverlay">
   <div class="modal">
     <div style="position:relative;">
       <button onclick="closeRelease()" style="position:absolute;top:-8px;right:-8px;background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1;padding:4px;">×</button>
     </div>
-    <div class="modal-title">v2.1.1 更新内容</div>
+    <div class="modal-title">v2.2.0 更新内容</div>
     <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">
-      <div style="background:var(--red-dim);border:1px solid rgba(217,48,37,0.3);border-radius:8px;padding:10px 12px;margin-bottom:14px;color:var(--red);font-size:12px;">
-        ⚠️ v1.9以前のデータについて<br>
-        以前のバージョンでは月が変わるとデータが消える不具合がありました。ご不便をおかけして申し訳ありません。v2.0以降は月別に保存されるため、過去月のデータも残ります。
-      </div>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <div>📅 <b>月ナビゲーション追加</b><br><span style="font-size:12px;color:var(--text3);">過去月を遡って確認できるようになりました</span></div>
-        <div>💾 <b>月別データ保存</b><br><span style="font-size:12px;color:var(--text3);">月をまたいでもデータが消えなくなりました</span></div>
-        <div>🚌 <b>交通費カテゴリ追加</b><br><span style="font-size:12px;color:var(--text3);">タクシー・バス等の私用交通費を管理できます</span></div>
-        <div>🏷️ <b>カテゴリ上書きボタン</b><br><span style="font-size:12px;color:var(--text3);">入力時にカテゴリを手動で指定できます</span></div>
-        <div>⚙️ <b>キーワード自由追加</b><br><span style="font-size:12px;color:var(--text3);">設定からカテゴリのキーワードを追加できます</span></div>
-        <div>📝 <b>文言・表示改善</b><br><span style="font-size:12px;color:var(--text3);">「支払い上限」に変更、年号表示を追加</span></div>
+        <div>📌 <b>固定費タブ追加</b><br><span style="font-size:12px;color:var(--text3);">家賃・光熱費・サブスク等の毎月の固定費を管理できます</span></div>
+        <div>💰 <b>収支フロー表示</b><br><span style="font-size:12px;color:var(--text3);">月収 − 固定費 = 自由に使えるお金 − 変動費 = 残金 が一目で分かります</span></div>
+        <div>⏳ <b>累計支払額の見える化</b><br><span style="font-size:12px;color:var(--text3);">「いつから・いくら払い続けているか」を自動計算。惰性サブスクの発見に</span></div>
+        <div>🔗 <b>固定費リストの共有</b><br><span style="font-size:12px;color:var(--text3);">URLひとつでLINE等から家族の端末に固定費リストを共有できます</span></div>
       </div>
     </div>
   </div>
@@ -366,8 +473,19 @@ function detectCat(memo, override, data) {
 }
 function getCat(key) { return CAT_DEFS.find(c => c.key === key) || CAT_DEFS[CAT_DEFS.length-1]; }
 
+// 固定費カテゴリ
+const FIXED_CATS = [
+  { key:'housing', label:'住居',     emoji:'🏠', color:'#5b8dee' },
+  { key:'utility', label:'光熱',     emoji:'💡', color:'#ffca55' },
+  { key:'comm',    label:'通信',     emoji:'📶', color:'#43c59e' },
+  { key:'subsc',   label:'サブスク', emoji:'📺', color:'#f06292' },
+  { key:'insure',  label:'保険',     emoji:'🛡️', color:'#ab7ae0' },
+  { key:'fother',  label:'その他',   emoji:'📌', color:'#888' },
+];
+function getFixedCat(key) { return FIXED_CATS.find(c=>c.key===key) || FIXED_CATS[FIXED_CATS.length-1]; }
+
 function load() { try { return migrate(JSON.parse(localStorage.getItem(STORE_KEY)) || defaultData()); } catch(e) { return defaultData(); } }
-function defaultData() { return { limit:100000, months:{}, theme:'system', customKeywords:{} }; }
+function defaultData() { return { limit:100000, months:{}, theme:'system', customKeywords:{}, fixedCosts:[], income:0 }; }
 function currentMonth() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function save(data) { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
 function getEntries(data, month) { return data.months[month] || []; }
@@ -375,6 +493,8 @@ function setEntries(data, month, entries) { data.months[month] = entries; }
 function migrate(data) {
   if (!data.months) data.months = {};
   if (!data.customKeywords) data.customKeywords = {};
+  if (!Array.isArray(data.fixedCosts)) data.fixedCosts = [];
+  if (typeof data.income !== 'number') data.income = 0;
   if (data.entries && data.entries.length > 0) {
     const m = data.month || currentMonth();
     if (!data.months[m]) data.months[m] = [];
@@ -630,6 +750,9 @@ function render() {
       </div>`;
     }).join('');
   }
+
+  // 固定費タブの残金表示も同期
+  if (typeof renderFixed === 'function') renderFixed();
 }
 
 // 設定モーダル
@@ -692,8 +815,205 @@ function removeKw(catKey, kw) {
   renderKwSections(data);
 }
 
+// ═══════════ 固定費タブ ═══════════
+let activeTab = 'expense';
+let selectedFcCat = 'fother';
+let fcEditingId = null;
+let fcEditingCat = 'fother';
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tabExpense').style.display = tab==='expense' ? '' : 'none';
+  document.getElementById('tabFixed').style.display   = tab==='fixed'   ? '' : 'none';
+  document.getElementById('tabBtnExpense').className = 'tab-btn'+(tab==='expense'?' active':'');
+  document.getElementById('tabBtnFixed').className   = 'tab-btn'+(tab==='fixed'?' active':'');
+  if (tab==='fixed') renderFixed();
+}
+
+// 開始月からの経過月数（開始月を含む。未来開始は0）
+function monthsSince(startYm) {
+  if (!startYm) return 1;
+  const [y,m] = startYm.split('-').map(Number);
+  const now = new Date();
+  const diff = (now.getFullYear()-y)*12 + (now.getMonth()+1-m) + 1;
+  return Math.max(diff, 0);
+}
+function ymLabel(ym) {
+  if (!ym) return '—';
+  const [y,m] = ym.split('-');
+  return `${y}/${parseInt(m)}`;
+}
+
+function renderFcCats() {
+  document.getElementById('fcCats').innerHTML = FIXED_CATS.map(c =>
+    `<button class="memo-cat-btn${selectedFcCat===c.key?' active':''}" onclick="setFcCat('${c.key}')">${c.emoji} ${c.label}</button>`
+  ).join('');
+}
+function setFcCat(key) { selectedFcCat = key; renderFcCats(); }
+function renderFcEditCats() {
+  document.getElementById('fcEditCats').innerHTML = FIXED_CATS.map(c =>
+    `<button class="memo-cat-btn${fcEditingCat===c.key?' active':''}" onclick="setFcEditCat('${c.key}')">${c.emoji} ${c.label}</button>`
+  ).join('');
+}
+function setFcEditCat(key) { fcEditingCat = key; renderFcEditCats(); }
+
+function addFixedCost() {
+  const name = document.getElementById('fcName').value.trim();
+  const amount = parseInt(document.getElementById('fcAmount').value);
+  const start = document.getElementById('fcStart').value; // "YYYY-MM"
+  if (!name) { document.getElementById('fcName').focus(); return; }
+  if (!amount || amount <= 0) { document.getElementById('fcAmount').focus(); return; }
+  const data = load();
+  data.fixedCosts.push({ id:Date.now(), name, amount, startYm:start||currentMonth(), cat:selectedFcCat });
+  save(data);
+  document.getElementById('fcName').value = '';
+  document.getElementById('fcAmount').value = '';
+  document.getElementById('fcStart').value = '';
+  selectedFcCat = 'fother';
+  renderFcCats();
+  renderFixed();
+}
+
+function saveIncome() {
+  const val = parseInt(document.getElementById('incomeInput').value);
+  const data = load();
+  data.income = (val && val > 0) ? val : 0;
+  save(data);
+  renderFixed();
+}
+
+function openFcEditModal(id) {
+  const data = load();
+  const item = data.fixedCosts.find(f => f.id === id);
+  if (!item) return;
+  fcEditingId = id;
+  document.getElementById('fcEditName').value = item.name;
+  document.getElementById('fcEditAmount').value = item.amount;
+  document.getElementById('fcEditStart').value = item.startYm || '';
+  fcEditingCat = item.cat || 'fother';
+  renderFcEditCats();
+  document.getElementById('fcEditOverlay').classList.add('open');
+}
+function closeFcEditModal(e) {
+  if (e.target === document.getElementById('fcEditOverlay'))
+    document.getElementById('fcEditOverlay').classList.remove('open');
+}
+function saveFcEdit() {
+  const name = document.getElementById('fcEditName').value.trim();
+  const amount = parseInt(document.getElementById('fcEditAmount').value);
+  if (!name || !amount || amount <= 0) return;
+  const data = load();
+  const item = data.fixedCosts.find(f => f.id === fcEditingId);
+  if (item) {
+    item.name = name; item.amount = amount;
+    item.startYm = document.getElementById('fcEditStart').value || item.startYm;
+    item.cat = fcEditingCat;
+  }
+  save(data);
+  document.getElementById('fcEditOverlay').classList.remove('open');
+  renderFixed();
+}
+function deleteFcFromEdit() {
+  if (!confirm('この固定費を削除しますか？')) return;
+  const data = load();
+  data.fixedCosts = data.fixedCosts.filter(f => f.id !== fcEditingId);
+  save(data);
+  document.getElementById('fcEditOverlay').classList.remove('open');
+  renderFixed();
+}
+
+function renderFixed() {
+  const data = load();
+  const fixedTotal = data.fixedCosts.reduce((s,f)=>s+f.amount,0);
+  const varSpent = getEntries(data, currentMonth()).reduce((s,e)=>s+e.amount,0);
+  const free = data.income - fixedTotal;
+  const remain = free - varSpent;
+
+  document.getElementById('incomeInput').value = data.income || '';
+  document.getElementById('flowFixed').textContent = '−'+fmt(fixedTotal);
+  document.getElementById('flowFree').textContent = (free<0?'−':'')+fmt(free);
+  document.getElementById('flowVar').textContent = '−'+fmt(varSpent);
+  const remainEl = document.getElementById('flowRemain');
+  remainEl.textContent = (remain<0?'−':'')+fmt(remain);
+  const remainPct = free > 0 ? (varSpent/free)*100 : 100;
+  remainEl.className = 'flow-hero-val ' + (remain<0?'over':remainPct>=80?'warn':'ok');
+
+  document.getElementById('fcTotalLabel').textContent = fmt(fixedTotal);
+
+  const list = document.getElementById('fcList');
+  if (data.fixedCosts.length === 0) {
+    list.innerHTML = '<div class="empty-state">固定費が登録されていません</div>';
+    return;
+  }
+  // 月額の大きい順に表示
+  const sorted = [...data.fixedCosts].sort((a,b)=>b.amount-a.amount);
+  list.innerHTML = sorted.map(f => {
+    const c = getFixedCat(f.cat);
+    const months = monthsSince(f.startYm);
+    const cum = months * f.amount;
+    const cumLabel = months === 0
+      ? `開始前（${ymLabel(f.startYm)}〜）`
+      : `${ymLabel(f.startYm)}〜 ${months}ヶ月 · 累計 <b>${fmt(cum)}</b>`;
+    return `<div class="history-item" style="background:rgba(136,136,136,0.06);border-color:var(--border);" onclick="openFcEditModal(${f.id})">
+      <div class="history-left">
+        <div class="history-cat" style="color:${c.color};">${c.emoji} ${c.label}</div>
+        <div class="history-memo">${f.name}</div>
+        <div class="fc-cum">${cumLabel}</div>
+      </div>
+      <div class="history-right">
+        <div class="history-amount">${fmt(f.amount)}<span style="font-size:11px;color:var(--text3);">/月</span></div>
+        <span style="color:var(--text3);font-size:13px;margin-left:8px;">›</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── 固定費の共有（URLハッシュ方式）──
+function encodePayload(obj) {
+  return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(obj)))));
+}
+function decodePayload(str) {
+  return JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(str)))));
+}
+function shareFixed() {
+  const data = load();
+  if (data.fixedCosts.length === 0) { alert('固定費が登録されていません'); return; }
+  const payload = {
+    v: 1,
+    inc: data.income || 0,
+    f: data.fixedCosts.map(x => ({ i:x.id, n:x.name, a:x.amount, s:x.startYm, c:x.cat })),
+  };
+  const url = location.origin + location.pathname + '#fc=' + encodePayload(payload);
+  if (navigator.share) {
+    navigator.share({ title:'固定費リスト', url }).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(url).then(()=>alert('共有URLをコピーしました。LINE等に貼り付けて送ってください。'));
+  }
+}
+function checkImport() {
+  const m = location.hash.match(/#fc=(.+)/);
+  if (!m) return;
+  try {
+    const payload = decodePayload(m[1]);
+    if (!payload || !Array.isArray(payload.f)) throw new Error('invalid');
+    const total = payload.f.reduce((s,x)=>s+(x.a||0),0);
+    const ok = confirm(`固定費リストを受け取りました（${payload.f.length}件・合計 ${fmt(total)}/月）。\n\n現在の固定費リストを上書きしますか？\n※ 支出の記録には影響しません`);
+    if (ok) {
+      const data = load();
+      data.fixedCosts = payload.f.map(x => ({ id:x.i||Date.now()+Math.random(), name:String(x.n||''), amount:parseInt(x.a)||0, startYm:x.s||currentMonth(), cat:x.c||'fother' }));
+      if (typeof payload.inc === 'number' && payload.inc > 0) data.income = payload.inc;
+      save(data);
+      switchTab('fixed');
+      alert('取り込みました');
+    }
+  } catch(e) {
+    alert('共有データの読み込みに失敗しました。URLが途中で切れていないか確認してください。');
+  }
+  history.replaceState(null, '', location.pathname + location.search);
+}
+
 const RELEASE_KEY = 'kakeibo_release';
-const CURRENT_VERSION = 'v2.1.1';
+const CURRENT_VERSION = 'v2.2.0';
 
 function checkRelease() {
   const seen = localStorage.getItem(RELEASE_KEY);
@@ -709,7 +1029,10 @@ function closeRelease() {
 const initData = load();
 applyTheme(initData.theme || 'system');
 renderMemoCats();
+renderFcCats();
 render();
+renderFixed();
+checkImport();
 checkRelease();
 </script>
 </body>
