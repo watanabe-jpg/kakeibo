@@ -202,6 +202,23 @@
   .share-fixed-btn { width:100%; background:var(--surface); border:1px solid var(--green); color:var(--green); border-radius:12px; font-size:14px; font-weight:700; padding:12px; cursor:pointer; margin:4px 0 20px; -webkit-appearance:none; display:flex; align-items:center; justify-content:center; gap:8px; }
   .share-fixed-btn:active { opacity:0.8; }
 
+  /* ── クイック入力 ── */
+  .quick-tag-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+  .quick-tag-label { font-size:10px; color:var(--text3); font-family:var(--mono); flex-shrink:0; width:30px; }
+  .quick-tag-btn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text2); font-size:12px; padding:4px 10px; cursor:pointer; transition:all 0.15s; -webkit-appearance:none; }
+  .quick-tag-btn.active { border-color:var(--green); color:var(--green); background:rgba(0,168,84,0.08); }
+
+  /* ── バックアップ ── */
+  .backup-banner { margin:10px 0 0; padding:8px 12px; border-radius:8px; font-size:12px; background:var(--amber-dim); color:var(--amber); border:1px solid rgba(224,128,0,0.3); display:none; justify-content:space-between; align-items:center; gap:8px; }
+  .backup-banner.show { display:flex; }
+  .backup-banner button { background:none; border:1px solid var(--amber); border-radius:6px; color:var(--amber); font-size:11px; padding:3px 8px; cursor:pointer; -webkit-appearance:none; flex-shrink:0; }
+  .backup-btn-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:6px; }
+  .backup-btn { background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text2); font-size:13px; padding:10px; cursor:pointer; -webkit-appearance:none; }
+  .backup-btn:active { opacity:0.8; }
+  .backup-note { font-size:11px; color:var(--text3); line-height:1.6; margin-bottom:8px; }
+  .import-textarea { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:12px; font-family:var(--mono); padding:10px; outline:none; min-height:110px; resize:vertical; -webkit-appearance:none; }
+  .import-textarea:focus { border-color:var(--green); }
+
   .settings-fab { position:fixed; bottom:max(env(safe-area-inset-bottom),16px); right:20px; width:44px; height:44px; background:var(--surface); border:1px solid var(--border); border-radius:50%; color:var(--text3); font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; -webkit-appearance:none; z-index:50; }
 </style>
 </head>
@@ -212,7 +229,7 @@
   <div class="header">
     <div class="header-left">
       <div class="header-title">残り枠</div>
-      <div class="header-version">v2.2.0</div>
+      <div class="header-version">v2.2.1</div>
     </div>
     <div class="header-right">
       <button class="share-btn" onclick="shareLog()">
@@ -230,6 +247,12 @@
       <button class="tab-btn" id="tabBtnFixed" onclick="switchTab('fixed')">📌 固定費</button>
     </div>
 
+    <!-- バックアップ喚起バナー -->
+    <div class="backup-banner" id="backupBanner">
+      <span id="backupBannerText">⚠️ バックアップが7日以上前です</span>
+      <button onclick="exportData()">今すぐ書き出す</button>
+    </div>
+
     <div id="tabExpense">
 
     <!-- 入力カード -->
@@ -240,7 +263,8 @@
         <span class="yen">¥</span>
         <input type="number" class="amount-input" id="amountInput" placeholder="0" inputmode="numeric">
       </div>
-      <input type="text" class="memo-input" id="memoInput" placeholder="どこで何を（例：セブン　コーヒー）" maxlength="30">
+      <input type="text" class="memo-input" id="memoInput" placeholder="どこで何を（例：セブン　コーヒー）" maxlength="40" oninput="renderQuickTags()">
+      <div id="quickTags"></div>
       <div class="memo-cats" id="memoCats"></div>
       <div class="cat-row">
         <button class="cat-btn active" id="catPrivate" onclick="setCategory('private')">🛒 私用</button>
@@ -363,9 +387,33 @@
       <button class="theme-opt active" id="themeSystem" onclick="setTheme('system')">⚙️ システム</button>
     </div>
     <div class="modal-divider"></div>
+    <div class="modal-section-label">クイック入力（店舗・内容）</div>
+    <div id="qtSections"></div>
+    <div class="modal-divider"></div>
+    <div class="modal-section-label">バックアップ</div>
+    <div class="backup-note">localStorageはブラウザの判断で消えることがあります（特にiPhoneは7日間未使用で削除）。定期的に書き出してLINE Keepメモ等に保存してください。</div>
+    <div class="backup-btn-row">
+      <button class="backup-btn" onclick="exportData()">📤 書き出し</button>
+      <button class="backup-btn" onclick="openImportModal()">📥 読み込み</button>
+    </div>
+    <div class="backup-note" id="backupStatus"></div>
+    <div class="modal-divider"></div>
     <div class="modal-section-label">キーワード設定</div>
     <div id="kwSections"></div>
     <button class="modal-save" onclick="saveSettings()">保存</button>
+  </div>
+</div>
+
+<!-- Import modal -->
+<div class="modal-overlay" id="importOverlay" onclick="closeImportModal(event)">
+  <div class="modal">
+    <div class="modal-title">データ読み込み</div>
+    <div class="backup-note">書き出したバックアップ（JSONテキスト）を下に貼り付けるか、ファイルを選択してください。<br>⚠️ 現在のデータはすべて置き換えられます。</div>
+    <textarea class="import-textarea" id="importText" placeholder='{"limit":100000,"months":{...}}'></textarea>
+    <div style="margin:10px 0;">
+      <input type="file" id="importFile" accept=".json,.txt,application/json,text/plain" onchange="importFromFile(event)" style="font-size:12px;color:var(--text2);width:100%;">
+    </div>
+    <button class="modal-save" onclick="importFromText()">貼り付けた内容を読み込む</button>
   </div>
 </div>
 
@@ -422,13 +470,17 @@
     <div style="position:relative;">
       <button onclick="closeRelease()" style="position:absolute;top:-8px;right:-8px;background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1;padding:4px;">×</button>
     </div>
-    <div class="modal-title">v2.2.0 更新内容</div>
+    <div class="modal-title">v2.2.1 更新内容</div>
     <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">
+      <div style="background:var(--amber-dim);border:1px solid rgba(224,128,0,0.3);border-radius:8px;padding:10px 12px;margin-bottom:14px;color:var(--amber);font-size:12px;">
+        ⚠️ データ消失について<br>
+        ブラウザの仕様（iPhoneは7日間未使用でサイトデータを自動削除）により、保存データが消えることがあります。今回の更新で保護機能とバックアップ機能を追加しました。<b>設定→バックアップから定期的に書き出し</b>をお願いします。
+      </div>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <div>📌 <b>固定費タブ追加</b><br><span style="font-size:12px;color:var(--text3);">家賃・光熱費・サブスク等の毎月の固定費を管理できます</span></div>
-        <div>💰 <b>収支フロー表示</b><br><span style="font-size:12px;color:var(--text3);">月収 − 固定費 = 自由に使えるお金 − 変動費 = 残金 が一目で分かります</span></div>
-        <div>⏳ <b>累計支払額の見える化</b><br><span style="font-size:12px;color:var(--text3);">「いつから・いくら払い続けているか」を自動計算。惰性サブスクの発見に</span></div>
-        <div>🔗 <b>固定費リストの共有</b><br><span style="font-size:12px;color:var(--text3);">URLひとつでLINE等から家族の端末に固定費リストを共有できます</span></div>
+        <div>⚡ <b>クイック入力</b><br><span style="font-size:12px;color:var(--text3);">店舗・内容をタップで組み合わせてメモを一瞬で入力（設定から自由に追加可能）</span></div>
+        <div>🛡️ <b>データ保護の強化</b><br><span style="font-size:12px;color:var(--text3);">ブラウザに保存維持を要求＋日次の自動バックアップ（3世代）を保持</span></div>
+        <div>📤 <b>書き出し / 読み込み</b><br><span style="font-size:12px;color:var(--text3);">全データをテキストで書き出してLINE Keep等に保存→いつでも復元できます</span></div>
+        <div>⏰ <b>バックアップ喚起</b><br><span style="font-size:12px;color:var(--text3);">最終書き出しから7日経過すると画面上部にお知らせが出ます</span></div>
       </div>
     </div>
   </div>
@@ -484,10 +536,59 @@ const FIXED_CATS = [
 ];
 function getFixedCat(key) { return FIXED_CATS.find(c=>c.key===key) || FIXED_CATS[FIXED_CATS.length-1]; }
 
+const DEFAULT_QUICK_TAGS = {
+  stores: ['ファミマ','ライフ','OKストア'],
+  items:  ['酒類','食材','生活用品'],
+};
+
 function load() { try { return migrate(JSON.parse(localStorage.getItem(STORE_KEY)) || defaultData()); } catch(e) { return defaultData(); } }
-function defaultData() { return { limit:100000, months:{}, theme:'system', customKeywords:{}, fixedCosts:[], income:0 }; }
+function defaultData() { return { limit:100000, months:{}, theme:'system', customKeywords:{}, fixedCosts:[], income:0, quickTags:{stores:[...DEFAULT_QUICK_TAGS.stores], items:[...DEFAULT_QUICK_TAGS.items]} }; }
 function currentMonth() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
-function save(data) { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
+function save(data) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(data));
+  backupTick(data);
+}
+
+// ── 自動バックアップ（日次・3世代ローテーション）──
+const BAK_PREFIX = 'kakeibo_bak_';
+function today() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function backupTick(data) {
+  try {
+    const t = today();
+    const b0 = JSON.parse(localStorage.getItem(BAK_PREFIX+'0') || 'null');
+    if (b0 && b0.d === t) {
+      // 同日はスロット0を上書きのみ
+      localStorage.setItem(BAK_PREFIX+'0', JSON.stringify({ d:t, data }));
+    } else {
+      // 日付が変わったら世代を繰り下げ
+      const b1 = localStorage.getItem(BAK_PREFIX+'1');
+      if (b1) localStorage.setItem(BAK_PREFIX+'2', b1);
+      if (b0) localStorage.setItem(BAK_PREFIX+'1', JSON.stringify(b0));
+      localStorage.setItem(BAK_PREFIX+'0', JSON.stringify({ d:t, data }));
+    }
+  } catch(e) { /* 容量超過等は無視（本体保存を優先） */ }
+}
+function isEmptyData(d) {
+  const hasEntries = d.months && Object.values(d.months).some(arr => arr && arr.length > 0);
+  return !hasEntries && (!d.fixedCosts || d.fixedCosts.length === 0);
+}
+function checkRestore() {
+  try {
+    const cur = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+    if (cur && !isEmptyData(migrate(cur))) return; // 本体が生きていれば何もしない
+    for (const slot of ['0','1','2']) {
+      const bak = JSON.parse(localStorage.getItem(BAK_PREFIX+slot) || 'null');
+      if (bak && bak.data && !isEmptyData(migrate(bak.data))) {
+        const n = Object.values(bak.data.months||{}).reduce((s,a)=>s+a.length,0);
+        if (confirm(`データが空ですが、${bak.d} のバックアップ（記録${n}件）が見つかりました。\n復元しますか？`)) {
+          save(migrate(bak.data));
+          location.reload();
+        }
+        return;
+      }
+    }
+  } catch(e) {}
+}
 function getEntries(data, month) { return data.months[month] || []; }
 function setEntries(data, month, entries) { data.months[month] = entries; }
 function migrate(data) {
@@ -495,6 +596,9 @@ function migrate(data) {
   if (!data.customKeywords) data.customKeywords = {};
   if (!Array.isArray(data.fixedCosts)) data.fixedCosts = [];
   if (typeof data.income !== 'number') data.income = 0;
+  if (!data.quickTags || !Array.isArray(data.quickTags.stores) || !Array.isArray(data.quickTags.items)) {
+    data.quickTags = { stores:[...DEFAULT_QUICK_TAGS.stores], items:[...DEFAULT_QUICK_TAGS.items] };
+  }
   if (data.entries && data.entries.length > 0) {
     const m = data.month || currentMonth();
     if (!data.months[m]) data.months[m] = [];
@@ -585,6 +689,7 @@ function addExpense() {
   document.getElementById('memoInput').value = '';
   selectedMemoCat = 'auto';
   renderMemoCats();
+  renderQuickTags();
   // 過去月表示中なら現在月に戻す
   if (viewMonth !== cm) viewMonth = cm;
   render();
@@ -763,6 +868,8 @@ function openModal() {
   pendingTheme = data.theme || 'system';
   setTheme(pendingTheme);
   renderKwSections(data);
+  renderQtSections(data);
+  updateBackupStatus();
   document.getElementById('modalOverlay').classList.add('open');
 }
 function closeModal(e) {
@@ -1012,8 +1119,146 @@ function checkImport() {
   history.replaceState(null, '', location.pathname + location.search);
 }
 
+// ═══════════ クイック入力 ═══════════
+function renderQuickTags() {
+  const el = document.getElementById('quickTags');
+  if (!el) return;
+  const data = load();
+  const memo = document.getElementById('memoInput').value;
+  const row = (label, tags) => tags.length ? `<div class="quick-tag-row"><span class="quick-tag-label">${label}</span>${
+    tags.map(t => `<button class="quick-tag-btn${memo.includes(t)?' active':''}" onclick="toggleQuickTag('${t.replace(/'/g,"\\'")}')">${t}</button>`).join('')
+  }</div>` : '';
+  el.innerHTML = row('店舗', data.quickTags.stores) + row('内容', data.quickTags.items);
+}
+function toggleQuickTag(tag) {
+  const input = document.getElementById('memoInput');
+  let memo = input.value;
+  if (memo.includes(tag)) {
+    memo = memo.replace(tag, '').replace(/\s{2,}/g,' ').trim();
+  } else {
+    memo = (memo ? memo + ' ' : '') + tag;
+    if (memo.length > 40) return; // maxlength超過は無視
+  }
+  input.value = memo;
+  renderQuickTags();
+}
+
+// 設定モーダル内のクイックタグ管理
+const QT_DEFS = [ { key:'stores', label:'🏪 店舗' }, { key:'items', label:'🛍️ 内容' } ];
+function renderQtSections(data) {
+  const wrap = document.getElementById('qtSections');
+  wrap.innerHTML = QT_DEFS.map(q => {
+    const tags = data.quickTags[q.key];
+    return `<div class="kw-section">
+      <div class="kw-header"><div class="kw-label">${q.label}</div></div>
+      <div class="kw-list">
+        ${tags.map(t=>`<div class="kw-tag">${t}<button class="kw-remove" onclick="removeQt('${q.key}','${t.replace(/'/g,"\\'")}')">×</button></div>`).join('')}
+      </div>
+      <div class="kw-add-row">
+        <input type="text" class="kw-add-input" id="qtInput_${q.key}" placeholder="追加（例：${q.key==='stores'?'セブン':'外食'}）" maxlength="12">
+        <button class="kw-add-btn" onclick="addQt('${q.key}')">追加</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function addQt(key) {
+  const input = document.getElementById(`qtInput_${key}`);
+  const val = input.value.trim();
+  if (!val) return;
+  const data = load();
+  if (!data.quickTags[key].includes(val)) data.quickTags[key].push(val);
+  save(data);
+  input.value = '';
+  renderQtSections(data);
+  renderQuickTags();
+}
+function removeQt(key, tag) {
+  const data = load();
+  data.quickTags[key] = data.quickTags[key].filter(t => t !== tag);
+  save(data);
+  renderQtSections(data);
+  renderQuickTags();
+}
+
+// ═══════════ 書き出し / 読み込み ═══════════
+const EXPORT_KEY = 'kakeibo_lastexport';
+function exportData() {
+  const data = load();
+  const json = JSON.stringify({ app:'kakeibo', ver:CURRENT_VERSION, exported:new Date().toISOString(), data });
+  const done = () => {
+    localStorage.setItem(EXPORT_KEY, String(Date.now()));
+    updateBackupBanner(); updateBackupStatus();
+  };
+  if (navigator.share) {
+    navigator.share({ title:`残り枠バックアップ ${today()}`, text: json }).then(done).catch(()=>{
+      navigator.clipboard.writeText(json).then(()=>{ alert('クリップボードにコピーしました。LINE Keepメモ等に貼り付けて保存してください。'); done(); });
+    });
+  } else {
+    navigator.clipboard.writeText(json).then(()=>{ alert('クリップボードにコピーしました。LINE Keepメモ等に貼り付けて保存してください。'); done(); });
+  }
+}
+function openImportModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.getElementById('importText').value = '';
+  document.getElementById('importOverlay').classList.add('open');
+}
+function closeImportModal(e) {
+  if (e.target === document.getElementById('importOverlay'))
+    document.getElementById('importOverlay').classList.remove('open');
+}
+function importFromFile(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { document.getElementById('importText').value = reader.result; importFromText(); };
+  reader.readAsText(file);
+}
+function importFromText() {
+  const raw = document.getElementById('importText').value.trim();
+  if (!raw) { alert('データが入力されていません'); return; }
+  try {
+    const parsed = JSON.parse(raw);
+    const data = migrate(parsed.data && parsed.app === 'kakeibo' ? parsed.data : parsed);
+    if (isEmptyData(data) && !confirm('読み込むデータに記録がありません。それでも続けますか？')) return;
+    const n = Object.values(data.months||{}).reduce((s,a)=>s+a.length,0);
+    const when = parsed.exported ? `（${parsed.exported.slice(0,10)} 書き出し）` : '';
+    if (!confirm(`記録${n}件・固定費${(data.fixedCosts||[]).length}件のデータ${when}で\n現在のデータを置き換えます。よろしいですか？`)) return;
+    save(data);
+    alert('読み込みました');
+    location.reload();
+  } catch(e) {
+    alert('読み込みに失敗しました。JSONの形式を確認してください（途中で切れていることが多いです）。');
+  }
+}
+function updateBackupBanner() {
+  const banner = document.getElementById('backupBanner');
+  const last = parseInt(localStorage.getItem(EXPORT_KEY) || '0');
+  const data = load();
+  const days = last ? Math.floor((Date.now()-last)/86400000) : Infinity;
+  if (!isEmptyData(data) && days >= 7) {
+    document.getElementById('backupBannerText').textContent =
+      last ? `⚠️ 最終バックアップから${days}日経過` : '⚠️ バックアップ未実施です';
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+}
+function updateBackupStatus() {
+  const el = document.getElementById('backupStatus');
+  if (!el) return;
+  const last = parseInt(localStorage.getItem(EXPORT_KEY) || '0');
+  const b0 = JSON.parse(localStorage.getItem(BAK_PREFIX+'0') || 'null');
+  el.innerHTML = `最終書き出し: ${last ? new Date(last).toLocaleDateString('ja-JP') : 'なし'} ／ 端末内自動バックアップ: ${b0 ? b0.d : 'なし'}`;
+}
+// ブラウザに保存維持を要求（対応環境のみ）
+function requestPersist() {
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().catch(()=>{});
+  }
+}
+
 const RELEASE_KEY = 'kakeibo_release';
-const CURRENT_VERSION = 'v2.2.0';
+const CURRENT_VERSION = 'v2.2.1';
 
 function checkRelease() {
   const seen = localStorage.getItem(RELEASE_KEY);
@@ -1026,12 +1271,16 @@ function closeRelease() {
   document.getElementById('releaseOverlay').classList.remove('open');
 }
 
+checkRestore();
+requestPersist();
 const initData = load();
 applyTheme(initData.theme || 'system');
 renderMemoCats();
 renderFcCats();
+renderQuickTags();
 render();
 renderFixed();
+updateBackupBanner();
 checkImport();
 checkRelease();
 </script>
