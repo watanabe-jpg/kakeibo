@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="残り枠">
 <title>残り枠</title>
@@ -48,6 +49,11 @@
   .header-version { font-size:10px; color:var(--text3); font-family:var(--mono); }
   .header-right { display:flex; align-items:center; gap:10px; }
   .share-btn { background:none; border:none; cursor:pointer; color:var(--text3); padding:4px; display:flex; align-items:center; }
+  .user-chip { font-size:11px; color:var(--text2); display:flex; align-items:center; gap:5px; max-width:150px; }
+  .user-chip-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sync-dot { width:7px; height:7px; border-radius:50%; background:var(--green); flex-shrink:0; transition:background 0.2s; }
+  .sync-dot.pending { background:var(--amber); }
+  .sync-dot.offline { background:var(--text3); }
 
   /* ── スクロール領域 ── */
   .pane { flex:1 1 0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 20px; padding-bottom:max(env(safe-area-inset-bottom),80px); }
@@ -67,15 +73,11 @@
   .memo-cats { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
   .memo-cat-btn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text3); font-size:12px; padding:4px 9px; cursor:pointer; transition:all 0.15s; -webkit-appearance:none; }
   .memo-cat-btn.active { border-color:var(--green); color:var(--green); background:rgba(0,168,84,0.08); }
-  .cat-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
-  .cat-btn { background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text2); font-size:13px; padding:8px; cursor:pointer; transition:all 0.15s; text-align:center; -webkit-appearance:none; }
-  .cat-btn.active { border-color:var(--green); color:var(--green); background:rgba(0,168,84,0.08); }
-  .cat-btn.transport-btn.active { border-color:var(--amber); color:var(--amber); background:rgba(224,128,0,0.08); }
   .submit-btn { width:100%; background:var(--green); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:700; padding:13px; cursor:pointer; transition:all 0.15s; -webkit-appearance:none; }
-  html[data-theme="dark"] .submit-btn, html[data-theme="system"] .submit-btn { color:#000; }
+  html[data-theme="dark"] .submit-btn { color:#000; }
   @media (prefers-color-scheme:dark) { html[data-theme="system"] .submit-btn { color:#000; } }
-  .submit-btn.transport-mode { background:var(--amber); }
   .submit-btn:active { opacity:0.9; transform:scale(0.98); }
+  .submit-btn:disabled { opacity:0.5; }
 
   /* ── 月ナビ ── */
   .month-nav { display:flex; align-items:center; justify-content:center; gap:0; margin:4px 0 12px; }
@@ -97,7 +99,6 @@
   .progress-bar { height:100%; border-radius:2px; transition:width 0.4s,background 0.3s; }
   .stats-row { font-size:11px; font-family:var(--mono); color:var(--text3); display:flex; gap:12px; flex-wrap:wrap; }
   .stats-row span { color:var(--text2); }
-  .stats-row .tv { color:var(--amber); }
   .alert { margin:8px 0 0; padding:8px 12px; border-radius:8px; font-size:12px; display:none; }
   .alert.warn { background:var(--amber-dim); color:var(--amber); border:1px solid rgba(224,128,0,0.3); display:block; }
   .alert.over { background:var(--red-dim); color:var(--red); border:1px solid rgba(217,48,37,0.3); display:block; }
@@ -109,7 +110,7 @@
   .breakdown-toggle { font-size:11px; color:var(--text3); transition:transform 0.25s; display:inline-block; }
   .breakdown-toggle.open { transform:rotate(180deg); }
   .breakdown-body { overflow:hidden; max-height:0; transition:max-height 0.3s ease; }
-  .breakdown-body.open { max-height:600px; }
+  .breakdown-body.open { max-height:900px; }
   .breakdown-list { display:flex; flex-direction:column; gap:5px; padding-top:8px; }
   .breakdown-item { border-radius:10px; padding:8px 12px; border:1px solid transparent; display:flex; justify-content:space-between; align-items:center; }
   .breakdown-left { display:flex; align-items:center; gap:8px; }
@@ -117,6 +118,7 @@
   .breakdown-label { font-size:13px; color:var(--text2); }
   .breakdown-hint { font-size:10px; color:var(--text3); font-family:var(--mono); margin-top:1px; }
   .breakdown-amount { font-size:13px; font-weight:500; font-family:var(--mono); }
+  .breakdown-sub { font-size:10px; color:var(--text3); font-family:var(--mono); letter-spacing:0.15em; margin:10px 0 2px; }
 
   /* ── HISTORY ── */
   .history-section { margin-bottom:16px; }
@@ -126,38 +128,42 @@
   .clear-btn:active { color:var(--red); }
   .history-list { display:flex; flex-direction:column; gap:6px; }
   .history-item { border-radius:10px; padding:10px 13px; display:flex; justify-content:space-between; align-items:center; border:1px solid transparent; animation:slideIn 0.2s ease; cursor:pointer; transition:opacity 0.15s; }
-  .history-item:active { opacity:0.75; }
+  .history-item.readonly { cursor:default; }
+  .history-item:not(.readonly):active { opacity:0.75; }
   @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
   .history-left { display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; }
-  .history-cat { font-size:11px; font-family:var(--mono); }
+  .history-cat { font-size:11px; font-family:var(--mono); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .history-memo { font-size:13px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:190px; }
   .history-right { display:flex; align-items:center; flex-shrink:0; }
   .history-amount { font-size:17px; font-weight:500; font-family:var(--mono); color:var(--text); }
   .empty-state { text-align:center; color:var(--text3); font-size:13px; font-family:var(--mono); padding:20px 0; }
   .edit-hint { font-size:11px; color:var(--text3); font-family:var(--mono); text-align:center; margin-bottom:8px; }
+  .member-badge { font-size:10px; font-family:var(--sans); border-radius:6px; padding:1px 6px; border:1px solid currentColor; line-height:1.4; }
 
   /* ── Modals ── */
   .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; display:none; align-items:flex-end; }
   .modal-overlay.open { display:flex; }
-  .modal { background:var(--surface); border-radius:20px 20px 0 0; padding:22px 20px; padding-bottom:max(env(safe-area-inset-bottom),28px); width:100%; border-top:1px solid var(--border); max-height:85dvh; overflow-y:auto; }
+  .modal { background:var(--surface); border-radius:20px 20px 0 0; padding:22px 20px; padding-bottom:max(env(safe-area-inset-bottom),28px); width:100%; max-width:430px; margin:0 auto; border-top:1px solid var(--border); max-height:85dvh; overflow-y:auto; }
   .modal-title { font-size:13px; color:var(--text2); font-family:var(--mono); letter-spacing:0.15em; margin-bottom:18px; text-align:center; }
-  .modal-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .modal-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; }
   .modal-row label { font-size:14px; color:var(--text2); }
   .modal-input { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:16px; font-family:var(--mono); padding:8px 12px; width:140px; text-align:right; outline:none; -webkit-appearance:none; }
   .modal-input:focus { border-color:var(--green); }
-  .modal-input-full { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:15px; font-family:var(--sans); padding:8px 12px; width:100%; outline:none; -webkit-appearance:none; }
+  .modal-input-full { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:16px; font-family:var(--sans); padding:8px 12px; width:100%; outline:none; -webkit-appearance:none; }
   .modal-input-full:focus { border-color:var(--green); }
   .modal-divider { height:1px; background:var(--border); margin:14px 0; }
   .modal-section-label { font-size:11px; color:var(--text3); font-family:var(--mono); letter-spacing:0.15em; margin-bottom:10px; }
   .theme-selector { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px; }
   .theme-opt { background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text2); font-size:13px; padding:9px 6px; cursor:pointer; text-align:center; -webkit-appearance:none; transition:all 0.15s; }
   .theme-opt.active { border-color:var(--green); color:var(--green); background:rgba(0,168,84,0.08); }
-  .edit-cat-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
   .modal-save { width:100%; background:var(--green); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:700; padding:13px; cursor:pointer; margin-top:8px; -webkit-appearance:none; }
-  html[data-theme="dark"] .modal-save, html[data-theme="system"] .modal-save { color:#000; }
+  html[data-theme="dark"] .modal-save { color:#000; }
   @media (prefers-color-scheme:dark) { html[data-theme="system"] .modal-save { color:#000; } }
   .modal-delete { width:100%; background:none; border:1px solid var(--border); border-radius:12px; font-size:14px; color:var(--red); padding:11px; cursor:pointer; margin-top:8px; -webkit-appearance:none; }
   .modal-delete:active { background:var(--red-dim); }
+  .modal-sub-btn { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text2); font-size:13px; padding:10px; cursor:pointer; -webkit-appearance:none; margin-bottom:6px; }
+  .modal-sub-btn:active { opacity:0.8; }
+  .modal-close { position:absolute; top:-8px; right:-8px; background:none; border:none; color:var(--text3); font-size:22px; cursor:pointer; line-height:1; padding:4px; }
 
   /* キーワード管理 */
   .kw-section { margin-bottom:12px; }
@@ -169,14 +175,20 @@
   .kw-remove { background:none; border:none; color:var(--text3); cursor:pointer; font-size:14px; padding:0 2px; -webkit-appearance:none; }
   .kw-remove:active { color:var(--red); }
   .kw-add-row { display:flex; gap:6px; }
-  .kw-add-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; padding:6px 10px; outline:none; -webkit-appearance:none; }
+  .kw-add-input { flex:1; min-width:0; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:16px; padding:6px 10px; outline:none; -webkit-appearance:none; }
   .kw-add-input:focus { border-color:var(--green); }
-  .kw-add-btn { background:var(--green); color:#000; border:none; border-radius:8px; font-size:13px; font-weight:700; padding:6px 12px; cursor:pointer; -webkit-appearance:none; }
+  .kw-add-btn { background:var(--green); color:#000; border:none; border-radius:8px; font-size:13px; font-weight:700; padding:6px 12px; cursor:pointer; -webkit-appearance:none; flex-shrink:0; }
 
   /* ── タブ ── */
   .tab-bar { display:flex; gap:8px; margin:14px 0 0; }
   .tab-btn { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text3); font-size:13px; font-weight:500; padding:9px; cursor:pointer; -webkit-appearance:none; transition:all 0.15s; }
   .tab-btn.active { border-color:var(--green); color:var(--green); background:rgba(0,168,84,0.08); }
+
+  /* ── 自分／家族 切替 ── */
+  .scope-bar { display:none; margin:8px 0 0; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:3px; gap:3px; }
+  .scope-bar.show { display:flex; }
+  .scope-btn { flex:1; background:none; border:none; border-radius:8px; color:var(--text3); font-size:12px; padding:6px; cursor:pointer; -webkit-appearance:none; transition:all 0.15s; }
+  .scope-btn.active { background:var(--surface2); color:var(--text); font-weight:500; }
 
   /* ── 固定費タブ ── */
   .flow-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; margin:14px 0 10px; }
@@ -193,14 +205,13 @@
   .flow-hero-val.over { color:var(--red); }
   .income-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .income-row label { font-size:13px; color:var(--text2); flex-shrink:0; }
+  .income-fixed { font-family:var(--mono); font-size:16px; color:var(--text); }
   .fc-form-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
   .fc-cats { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
-  .fc-total-line { font-size:11px; font-family:var(--mono); color:var(--text3); margin-bottom:8px; }
+  .fc-total-line { font-size:11px; font-family:var(--mono); color:var(--text3); }
   .fc-total-line span { color:var(--text); }
   .fc-cum { font-size:10px; color:var(--text3); font-family:var(--mono); margin-top:2px; }
   .fc-cum b { color:var(--amber); font-weight:500; }
-  .share-fixed-btn { width:100%; background:var(--surface); border:1px solid var(--green); color:var(--green); border-radius:12px; font-size:14px; font-weight:700; padding:12px; cursor:pointer; margin:4px 0 20px; -webkit-appearance:none; display:flex; align-items:center; justify-content:center; gap:8px; }
-  .share-fixed-btn:active { opacity:0.8; }
 
   /* ── クイック入力 ── */
   .quick-tag-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
@@ -208,10 +219,13 @@
   .quick-tag-btn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text2); font-size:12px; padding:4px 10px; cursor:pointer; transition:all 0.15s; -webkit-appearance:none; }
   .quick-tag-btn.active { border-color:var(--green); color:var(--green); background:rgba(0,168,84,0.08); }
 
-  /* ── バックアップ ── */
-  .backup-banner { margin:10px 0 0; padding:8px 12px; border-radius:8px; font-size:12px; background:var(--amber-dim); color:var(--amber); border:1px solid rgba(224,128,0,0.3); display:none; justify-content:space-between; align-items:center; gap:8px; }
-  .backup-banner.show { display:flex; }
-  .backup-banner button { background:none; border:1px solid var(--amber); border-radius:6px; color:var(--amber); font-size:11px; padding:3px 8px; cursor:pointer; -webkit-appearance:none; flex-shrink:0; }
+  /* ── バナー（旧データ取り込み） ── */
+  .notice-banner { margin:10px 0 0; padding:10px 12px; border-radius:8px; font-size:12px; background:var(--amber-dim); color:var(--amber); border:1px solid rgba(224,128,0,0.3); display:none; flex-direction:column; gap:8px; }
+  .notice-banner.show { display:flex; }
+  .notice-actions { display:flex; gap:8px; }
+  .notice-actions button { background:none; border:1px solid var(--amber); border-radius:6px; color:var(--amber); font-size:12px; padding:5px 10px; cursor:pointer; -webkit-appearance:none; }
+  .notice-actions button.primary { background:var(--amber); color:#000; font-weight:700; }
+
   .backup-btn-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:6px; }
   .backup-btn { background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text2); font-size:13px; padding:10px; cursor:pointer; -webkit-appearance:none; }
   .backup-btn:active { opacity:0.8; }
@@ -219,20 +233,93 @@
   .import-textarea { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:12px; font-family:var(--mono); padding:10px; outline:none; min-height:110px; resize:vertical; -webkit-appearance:none; }
   .import-textarea:focus { border-color:var(--green); }
 
-  .settings-fab { position:fixed; bottom:max(env(safe-area-inset-bottom),16px); right:20px; width:44px; height:44px; background:var(--surface); border:1px solid var(--border); border-radius:50%; color:var(--text3); font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; -webkit-appearance:none; z-index:50; }
+  /* ── 家族 ── */
+  .code-box { display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--surface2); border:1px dashed var(--border); border-radius:10px; padding:10px 12px; margin-bottom:10px; }
+  .code-text { font-family:var(--mono); font-size:22px; letter-spacing:0.15em; color:var(--text); }
+  .code-copy { background:none; border:1px solid var(--green); color:var(--green); border-radius:8px; font-size:12px; padding:5px 10px; cursor:pointer; -webkit-appearance:none; }
+  .member-list { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .member-row { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text2); }
+  .member-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+  .settings-fab { position:fixed; bottom:max(env(safe-area-inset-bottom),16px); right:max(20px, calc(50vw - 195px)); width:44px; height:44px; background:var(--surface); border:1px solid var(--border); border-radius:50%; color:var(--text3); font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; -webkit-appearance:none; z-index:50; }
+
+  /* ── 認証・読み込み画面 ── */
+  .gate { position:fixed; inset:0; background:var(--bg); z-index:200; display:none; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
+  .gate.open { display:flex; }
+  .gate-inner { width:100%; max-width:360px; }
+  .gate-logo { font-family:var(--mono); font-size:12px; letter-spacing:0.3em; color:var(--text3); text-align:center; margin-bottom:6px; }
+  .gate-title { font-size:22px; font-weight:700; text-align:center; margin-bottom:22px; }
+  .gate-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; }
+  .gate-tabs { display:flex; gap:6px; margin-bottom:16px; }
+  .gate-field { margin-bottom:12px; }
+  .gate-field label { display:block; font-size:12px; color:var(--text2); margin-bottom:6px; }
+  .gate-error { font-size:12px; color:var(--red); margin-bottom:10px; min-height:1em; line-height:1.5; }
+  .gate-link { display:block; width:100%; text-align:center; background:none; border:none; color:var(--text3); font-size:12px; margin-top:12px; cursor:pointer; text-decoration:underline; -webkit-appearance:none; }
+  .gate-note { font-size:11px; color:var(--text3); line-height:1.7; margin-top:14px; }
+  .spinner { width:22px; height:22px; border:2px solid var(--border); border-top-color:var(--green); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 12px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .toast { position:fixed; left:50%; bottom:max(calc(env(safe-area-inset-bottom) + 70px),80px); transform:translateX(-50%) translateY(20px); background:var(--text); color:var(--bg); font-size:13px; padding:9px 16px; border-radius:20px; opacity:0; pointer-events:none; transition:all 0.25s; z-index:300; max-width:90vw; text-align:center; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
+
+<!-- 読み込み中 -->
+<div class="gate open" id="loadingGate">
+  <div class="gate-inner" style="text-align:center;">
+    <div class="spinner"></div>
+    <div class="gate-logo">ZANWAKU</div>
+    <div class="backup-note" id="loadingText">読み込み中…</div>
+  </div>
+</div>
+
+<!-- ログイン／新規登録 -->
+<div class="gate" id="authGate">
+  <div class="gate-inner">
+    <div class="gate-logo">ZANWAKU</div>
+    <div class="gate-title">残り枠</div>
+    <div class="gate-card">
+      <div class="gate-tabs">
+        <button class="tab-btn active" id="authTabLogin" onclick="setAuthMode('login')">ログイン</button>
+        <button class="tab-btn" id="authTabSignup" onclick="setAuthMode('signup')">新規登録</button>
+      </div>
+      <form id="authForm" onsubmit="submitAuth(event)">
+        <div class="gate-field" id="nameField" style="display:none;">
+          <label for="authName">表示名（家族に表示されます）</label>
+          <input type="text" class="modal-input-full" id="authName" maxlength="12" placeholder="例：じゅん" autocomplete="nickname">
+        </div>
+        <div class="gate-field">
+          <label for="authEmail">メールアドレス</label>
+          <input type="email" class="modal-input-full" id="authEmail" required autocomplete="email" inputmode="email">
+        </div>
+        <div class="gate-field">
+          <label for="authPass">パスワード<span id="passHint" style="display:none;">（6文字以上）</span></label>
+          <input type="password" class="modal-input-full" id="authPass" required minlength="6" autocomplete="current-password">
+        </div>
+        <div class="gate-error" id="authError"></div>
+        <button class="submit-btn" type="submit" id="authSubmit">ログイン</button>
+      </form>
+      <button class="gate-link" id="resetLink" onclick="resetPassword()">パスワードを忘れた場合</button>
+    </div>
+    <div class="gate-note" id="authNote">データはクラウド（Firebase）に保存されます。機種変更やブラウザのデータ削除でも消えません。</div>
+  </div>
+</div>
+
 <div class="app">
 
   <!-- ヘッダー -->
   <div class="header">
     <div class="header-left">
       <div class="header-title">残り枠</div>
-      <div class="header-version">v2.2.1</div>
+      <div class="header-version" id="headerVersion"></div>
     </div>
     <div class="header-right">
-      <button class="share-btn" onclick="shareLog()">
+      <div class="user-chip" title="同期状態">
+        <span class="sync-dot" id="syncDot"></span>
+        <span class="user-chip-name" id="userChipName"></span>
+      </div>
+      <button class="share-btn" onclick="shareLog()" aria-label="共有">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
       </button>
     </div>
@@ -247,10 +334,19 @@
       <button class="tab-btn" id="tabBtnFixed" onclick="switchTab('fixed')">📌 固定費</button>
     </div>
 
-    <!-- バックアップ喚起バナー -->
-    <div class="backup-banner" id="backupBanner">
-      <span id="backupBannerText">⚠️ バックアップが7日以上前です</span>
-      <button onclick="exportData()">今すぐ書き出す</button>
+    <!-- 自分／家族 -->
+    <div class="scope-bar" id="scopeBar">
+      <button class="scope-btn active" id="scopeMe" onclick="setScope('me')">👤 自分</button>
+      <button class="scope-btn" id="scopeFamily" onclick="setScope('family')">👨‍👩‍👧 家族の合計</button>
+    </div>
+
+    <!-- 旧データ取り込み案内 -->
+    <div class="notice-banner" id="legacyBanner">
+      <span id="legacyBannerText"></span>
+      <div class="notice-actions">
+        <button class="primary" onclick="importLegacyFromDevice()">アカウントに取り込む</button>
+        <button onclick="hideLegacyBanner()">あとで</button>
+      </div>
     </div>
 
     <div id="tabExpense">
@@ -266,10 +362,6 @@
       <input type="text" class="memo-input" id="memoInput" placeholder="どこで何を（例：セブン　コーヒー）" maxlength="40" oninput="renderQuickTags()">
       <div id="quickTags"></div>
       <div class="memo-cats" id="memoCats"></div>
-      <div class="cat-row">
-        <button class="cat-btn active" id="catPrivate" onclick="setCategory('private')">🛒 私用</button>
-        
-      </div>
       <button class="submit-btn" id="submitBtn" onclick="addExpense()">記録する</button>
     </div>
 
@@ -288,7 +380,7 @@
     <!-- 金額表示 -->
     <div class="hero">
       <div class="hero-amount ok" id="heroAmount">¥0</div>
-      <div class="hero-sub" id="heroSub">上限を設定してください</div>
+      <div class="hero-sub" id="heroSub"></div>
     </div>
     <div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
     <div class="stats-row" id="statsRow"></div>
@@ -311,7 +403,7 @@
         <div class="section-title">HISTORY</div>
         <button class="clear-btn" onclick="confirmClearMonth()">月リセット</button>
       </div>
-      <div class="edit-hint">項目をタップで編集</div>
+      <div class="edit-hint" id="editHint">項目をタップで編集</div>
       <div class="history-list" id="historyList"></div>
     </div>
 
@@ -323,8 +415,9 @@
       <!-- 収支フロー -->
       <div class="flow-card">
         <div class="income-row" style="margin-bottom:8px;">
-          <label>💰 月収（手取り）</label>
+          <label id="incomeLabel">💰 月収（手取り）</label>
           <input type="number" class="modal-input" id="incomeInput" inputmode="numeric" placeholder="0" onchange="saveIncome()">
+          <span class="income-fixed" id="incomeFamily" style="display:none;"></span>
         </div>
         <div class="flow-divider"></div>
         <div class="flow-row minus"><span>固定費合計</span><span class="flow-val" id="flowFixed">−¥0</span></div>
@@ -356,15 +449,9 @@
           <div class="section-title">FIXED COSTS</div>
           <div class="fc-total-line">合計 <span id="fcTotalLabel">¥0</span>/月</div>
         </div>
-        <div class="edit-hint">項目をタップで編集</div>
+        <div class="edit-hint" id="fcEditHint">項目をタップで編集</div>
         <div class="history-list" id="fcList"></div>
       </div>
-
-      <!-- 共有 -->
-      <button class="share-fixed-btn" onclick="shareFixed()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-        固定費リストを共有（LINE等）
-      </button>
 
     </div><!-- /tabFixed -->
 
@@ -375,32 +462,50 @@
 <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
   <div class="modal">
     <div class="modal-title">SETTINGS</div>
+
+    <div class="modal-section-label">アカウント</div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:13px;color:var(--text2);display:block;margin-bottom:6px;">表示名</label>
+      <input type="text" class="modal-input-full" id="settingName" maxlength="12">
+    </div>
+    <div class="backup-note" id="settingEmail"></div>
     <div class="modal-row">
-      <label>支払い上限</label>
+      <label>支払い上限（自分）</label>
       <input type="number" class="modal-input" id="settingLimit" inputmode="numeric" placeholder="100000">
     </div>
-<div class="modal-divider"></div>
+    <button class="modal-save" onclick="saveSettings()">保存</button>
+
+    <div class="modal-divider"></div>
+    <div class="modal-section-label">家族で共有</div>
+    <div id="familySection"></div>
+
+    <div class="modal-divider"></div>
     <div class="modal-section-label">THEME</div>
     <div class="theme-selector">
       <button class="theme-opt" id="themeLight" onclick="setTheme('light')">☀️ ライト</button>
       <button class="theme-opt" id="themeDark" onclick="setTheme('dark')">🌙 ダーク</button>
       <button class="theme-opt active" id="themeSystem" onclick="setTheme('system')">⚙️ システム</button>
     </div>
+
     <div class="modal-divider"></div>
     <div class="modal-section-label">クイック入力（店舗・内容）</div>
     <div id="qtSections"></div>
+
     <div class="modal-divider"></div>
-    <div class="modal-section-label">バックアップ</div>
-    <div class="backup-note">localStorageはブラウザの判断で消えることがあります（特にiPhoneは7日間未使用で削除）。定期的に書き出してLINE Keepメモ等に保存してください。</div>
+    <div class="modal-section-label">キーワード設定</div>
+    <div id="kwSections"></div>
+
+    <div class="modal-divider"></div>
+    <div class="modal-section-label">データ</div>
+    <div class="backup-note">データはクラウドに自動保存されています。書き出しは念のための控えです。</div>
     <div class="backup-btn-row">
       <button class="backup-btn" onclick="exportData()">📤 書き出し</button>
       <button class="backup-btn" onclick="openImportModal()">📥 読み込み</button>
     </div>
-    <div class="backup-note" id="backupStatus"></div>
+    <button class="modal-sub-btn" id="legacySettingBtn" style="display:none;" onclick="importLegacyFromDevice()">📲 この端末の旧データ（v2）を取り込む</button>
+
     <div class="modal-divider"></div>
-    <div class="modal-section-label">キーワード設定</div>
-    <div id="kwSections"></div>
-    <button class="modal-save" onclick="saveSettings()">保存</button>
+    <button class="modal-delete" onclick="logout()">ログアウト</button>
   </div>
 </div>
 
@@ -408,8 +513,8 @@
 <div class="modal-overlay" id="importOverlay" onclick="closeImportModal(event)">
   <div class="modal">
     <div class="modal-title">データ読み込み</div>
-    <div class="backup-note">書き出したバックアップ（JSONテキスト）を下に貼り付けるか、ファイルを選択してください。<br>⚠️ 現在のデータはすべて置き換えられます。</div>
-    <textarea class="import-textarea" id="importText" placeholder='{"limit":100000,"months":{...}}'></textarea>
+    <div class="backup-note">書き出したバックアップ（v2の書き出しも可）を下に貼り付けるか、ファイルを選択してください。<br>記録はアカウントに追加されます（同じ記録を二重に読み込んでも重複しません）。設定・固定費・月収はバックアップの内容で置き換わります。</div>
+    <textarea class="import-textarea" id="importText" placeholder='{"app":"kakeibo","data":{...}}'></textarea>
     <div style="margin:10px 0;">
       <input type="file" id="importFile" accept=".json,.txt,application/json,text/plain" onchange="importFromFile(event)" style="font-size:12px;color:var(--text2);width:100%;">
     </div>
@@ -427,15 +532,10 @@
     </div>
     <div style="margin-bottom:14px;">
       <label style="font-size:14px;color:var(--text2);display:block;margin-bottom:8px;">メモ</label>
-      <input type="text" class="modal-input-full" id="editMemo" maxlength="30" placeholder="どこで何を">
+      <input type="text" class="modal-input-full" id="editMemo" maxlength="40" placeholder="どこで何を">
     </div>
     <div class="modal-section-label">メモカテゴリ</div>
     <div class="memo-cats" id="editMemoCats" style="margin-bottom:14px;"></div>
-    <div class="modal-section-label">支払区分</div>
-    <div class="edit-cat-row">
-      <button class="cat-btn active" id="editCatPrivate" onclick="setEditCat('private')">🛒 私用</button>
-      
-    </div>
     <button class="modal-save" onclick="saveEdit()">保存</button>
     <button class="modal-delete" onclick="deleteFromEdit()">削除</button>
   </div>
@@ -468,30 +568,73 @@
 <div class="modal-overlay" id="releaseOverlay">
   <div class="modal">
     <div style="position:relative;">
-      <button onclick="closeRelease()" style="position:absolute;top:-8px;right:-8px;background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1;padding:4px;">×</button>
+      <button class="modal-close" onclick="closeRelease()">×</button>
     </div>
-    <div class="modal-title">v2.2.1 更新内容</div>
+    <div class="modal-title" id="releaseTitle"></div>
     <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">
-      <div style="background:var(--amber-dim);border:1px solid rgba(224,128,0,0.3);border-radius:8px;padding:10px 12px;margin-bottom:14px;color:var(--amber);font-size:12px;">
-        ⚠️ データ消失について<br>
-        ブラウザの仕様（iPhoneは7日間未使用でサイトデータを自動削除）により、保存データが消えることがあります。今回の更新で保護機能とバックアップ機能を追加しました。<b>設定→バックアップから定期的に書き出し</b>をお願いします。
-      </div>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <div>⚡ <b>クイック入力</b><br><span style="font-size:12px;color:var(--text3);">店舗・内容をタップで組み合わせてメモを一瞬で入力（設定から自由に追加可能）</span></div>
-        <div>🛡️ <b>データ保護の強化</b><br><span style="font-size:12px;color:var(--text3);">ブラウザに保存維持を要求＋日次の自動バックアップ（3世代）を保持</span></div>
-        <div>📤 <b>書き出し / 読み込み</b><br><span style="font-size:12px;color:var(--text3);">全データをテキストで書き出してLINE Keep等に保存→いつでも復元できます</span></div>
-        <div>⏰ <b>バックアップ喚起</b><br><span style="font-size:12px;color:var(--text3);">最終書き出しから7日経過すると画面上部にお知らせが出ます</span></div>
+        <div>☁️ <b>クラウド保存に移行</b><br><span style="font-size:12px;color:var(--text3);">データはアカウントに保存されるようになりました。ブラウザの自動削除や機種変更でも消えません。</span></div>
+        <div>👨‍👩‍👧 <b>家族で共有</b><br><span style="font-size:12px;color:var(--text3);">設定→「家族で共有」で招待コードを作って渡すと、家族の支出・固定費を合算して見られます（編集は自分の分だけ）。</span></div>
+        <div>📲 <b>旧データの取り込み</b><br><span style="font-size:12px;color:var(--text3);">以前この端末で使っていたデータは、上部の案内か設定→データから取り込めます。v2で書き出したバックアップも読み込めます。</span></div>
       </div>
     </div>
+    <button class="modal-save" onclick="closeRelease()">はじめる</button>
   </div>
 </div>
 
-<button class="settings-fab" onclick="openModal()">⚙</button>
+<button class="settings-fab" id="settingsFab" onclick="openModal()">⚙</button>
+<div class="toast" id="toast"></div>
 
-<script>
-const STORE_KEY = 'kakeibo_v1';
+<script type="module">
+// ═══════════════════════════════════════════════
+//  Firebase 設定
+//  Firebaseコンソール → プロジェクトの設定 → マイアプリ（ウェブ）に表示される値を貼り付けてください
+// ═══════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyANBXbMU0hHva4ySuvlxanFR08VFPiVfIk",
+  authDomain: "zanwaku-kakeibo.firebaseapp.com",
+  projectId: "zanwaku-kakeibo",
+  storageBucket: "zanwaku-kakeibo.firebasestorage.app",
+  messagingSenderId: "760901361845",
+  appId: "1:760901361845:web:7a82db818869ec04aa9efc",
+};
 
-// デフォルトキーワード
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+import {
+  getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  sendPasswordResetEmail, signOut, connectAuthEmulator,
+} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator,
+  doc, getDoc, getDocs, setDoc, deleteDoc, collection, query, where, onSnapshot, writeBatch,
+  arrayUnion, arrayRemove,
+} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+
+const CURRENT_VERSION = 'v3.0.0';
+
+// ローカル開発用：localhost で ?emu を付けて開くとFirebaseエミュレータに接続
+const USE_EMU = ['localhost','127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).has('emu');
+const cfg = USE_EMU ? { apiKey:'demo-key', authDomain:'demo-kakeibo.firebaseapp.com', projectId:'demo-kakeibo', appId:'demo' } : firebaseConfig;
+const CONFIGURED = USE_EMU || !String(firebaseConfig.apiKey).startsWith('YOUR_');
+
+let app, auth, db;
+if (CONFIGURED) {
+  app = initializeApp(cfg);
+  auth = getAuth(app);
+  try {
+    db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+  } catch(e) {
+    db = initializeFirestore(app, {});
+  }
+  if (USE_EMU) {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings:true });
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  定数（v2から継承）
+// ═══════════════════════════════════════════════
 const DEFAULT_KEYWORDS = {
   convenience: ['コンビニ','セブン','7-eleven','711','ローソン','ファミマ','ファミリーマート','ミニストップ','デイリー','newdays','ニューデイズ','セイコーマート'],
   super:        ['スーパー','イオン','西友','ライフ','マルエツ','サミット','オーケー','ヨーカドー','ベルク','ロピア','フードワン','まいばすけっと','まいばす','業務スーパー','コープ'],
@@ -499,7 +642,6 @@ const DEFAULT_KEYWORDS = {
   food:         ['外食','マクドナルド','マック','mos','モス','すき家','吉野家','松屋','サイゼ','ガスト','デニーズ','餃子','ラーメン','寿司','焼肉','カフェ','スタバ','ドトール'],
   transit:      ['交通費','タクシー','バス','電車','新幹線','飛行機','Suica','パスモ','IC','高速','駐車場'],
 };
-
 const CAT_DEFS = [
   { key:'convenience', label:'コンビニ', emoji:'🏪', color:'#5b8dee', bg:'rgba(91,141,238,0.10)', border:'rgba(91,141,238,0.25)' },
   { key:'super',       label:'スーパー', emoji:'🛒', color:'#43c59e', bg:'rgba(67,197,158,0.10)', border:'rgba(67,197,158,0.25)' },
@@ -508,7 +650,47 @@ const CAT_DEFS = [
   { key:'transit',     label:'交通費',   emoji:'🚌', color:'#ab7ae0', bg:'rgba(171,122,224,0.10)', border:'rgba(171,122,224,0.25)' },
   { key:'other',       label:'その他',   emoji:'💳', color:'#888',    bg:'rgba(136,136,136,0.08)', border:'rgba(136,136,136,0.15)' },
 ];
+const FIXED_CATS = [
+  { key:'housing', label:'住居',     emoji:'🏠', color:'#5b8dee' },
+  { key:'utility', label:'光熱',     emoji:'💡', color:'#ffca55' },
+  { key:'comm',    label:'通信',     emoji:'📶', color:'#43c59e' },
+  { key:'subsc',   label:'サブスク', emoji:'📺', color:'#f06292' },
+  { key:'insure',  label:'保険',     emoji:'🛡️', color:'#ab7ae0' },
+  { key:'fother',  label:'その他',   emoji:'📌', color:'#888' },
+];
+const DEFAULT_QUICK_TAGS = { stores:['ファミマ','ライフ','OKストア'], items:['酒類','食材','生活用品'] };
+const MEMBER_COLORS = ['#00c2a8','#ff7eb6','#ffb020','#7aa2ff','#c38bff','#ff6b6b','#8bd450','#4dd0e1','#f5a3ff','#bdbdbd'];
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
+// ═══════════════════════════════════════════════
+//  ユーティリティ
+// ═══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmt(n) { return '¥' + Math.abs(n).toLocaleString('ja-JP'); }
+function signed(n) { return (n<0?'−':'') + fmt(n); }
+function currentMonth() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function today() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function monthToLabel(ym) { const [y,m]=ym.split('-'); return `${y}年${parseInt(m)}月`; }
+function addMonths(ym, delta) { const [y,m]=ym.split('-').map(Number); const d=new Date(y,m-1+delta,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function ymLabel(ym) { if(!ym) return '—'; const [y,m]=ym.split('-'); return `${y}/${parseInt(m)}`; }
+function monthsSince(startYm) {
+  if (!startYm) return 1;
+  const [y,m] = startYm.split('-').map(Number);
+  const now = new Date();
+  return Math.max((now.getFullYear()-y)*12 + (now.getMonth()+1-m) + 1, 0);
+}
+let toastTimer;
+function toast(msg, ms=2600) {
+  const el = $('toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>el.classList.remove('show'), ms);
+}
+// 書き込みはオフラインでも即時に画面へ反映される（裏で同期）。失敗時のみ通知
+function fire(p, label='保存') {
+  return p.then(() => true, e => { console.error(e); toast(`${label}に失敗しました（${e.code||e.message}）`, 4000); return false; });
+}
+function getCat(key) { return CAT_DEFS.find(c => c.key === key) || CAT_DEFS[CAT_DEFS.length-1]; }
+function getFixedCat(key) { return FIXED_CATS.find(c=>c.key===key) || FIXED_CATS[FIXED_CATS.length-1]; }
 function getKeywords(data, key) {
   return (data.customKeywords && data.customKeywords[key]) ? data.customKeywords[key] : DEFAULT_KEYWORDS[key] || [];
 }
@@ -518,313 +700,340 @@ function detectCat(memo, override, data) {
   const m = memo.toLowerCase();
   for (const c of CAT_DEFS) {
     if (c.key === 'other') continue;
-    const kws = getKeywords(data, c.key);
-    if (kws.some(k => m.includes(k.toLowerCase()))) return c.key;
+    if (getKeywords(data, c.key).some(k => m.includes(k.toLowerCase()))) return c.key;
   }
   return 'other';
 }
-function getCat(key) { return CAT_DEFS.find(c => c.key === key) || CAT_DEFS[CAT_DEFS.length-1]; }
 
-// 固定費カテゴリ
-const FIXED_CATS = [
-  { key:'housing', label:'住居',     emoji:'🏠', color:'#5b8dee' },
-  { key:'utility', label:'光熱',     emoji:'💡', color:'#ffca55' },
-  { key:'comm',    label:'通信',     emoji:'📶', color:'#43c59e' },
-  { key:'subsc',   label:'サブスク', emoji:'📺', color:'#f06292' },
-  { key:'insure',  label:'保険',     emoji:'🛡️', color:'#ab7ae0' },
-  { key:'fother',  label:'その他',   emoji:'📌', color:'#888' },
-];
-function getFixedCat(key) { return FIXED_CATS.find(c=>c.key===key) || FIXED_CATS[FIXED_CATS.length-1]; }
-
-const DEFAULT_QUICK_TAGS = {
-  stores: ['ファミマ','ライフ','OKストア'],
-  items:  ['酒類','食材','生活用品'],
-};
-
-function load() { try { return migrate(JSON.parse(localStorage.getItem(STORE_KEY)) || defaultData()); } catch(e) { return defaultData(); } }
-function defaultData() { return { limit:100000, months:{}, theme:'system', customKeywords:{}, fixedCosts:[], income:0, quickTags:{stores:[...DEFAULT_QUICK_TAGS.stores], items:[...DEFAULT_QUICK_TAGS.items]} }; }
-function currentMonth() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
-function save(data) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(data));
-  backupTick(data);
-}
-
-// ── 自動バックアップ（日次・3世代ローテーション）──
-const BAK_PREFIX = 'kakeibo_bak_';
-function today() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-function backupTick(data) {
-  try {
-    const t = today();
-    const b0 = JSON.parse(localStorage.getItem(BAK_PREFIX+'0') || 'null');
-    if (b0 && b0.d === t) {
-      // 同日はスロット0を上書きのみ
-      localStorage.setItem(BAK_PREFIX+'0', JSON.stringify({ d:t, data }));
-    } else {
-      // 日付が変わったら世代を繰り下げ
-      const b1 = localStorage.getItem(BAK_PREFIX+'1');
-      if (b1) localStorage.setItem(BAK_PREFIX+'2', b1);
-      if (b0) localStorage.setItem(BAK_PREFIX+'1', JSON.stringify(b0));
-      localStorage.setItem(BAK_PREFIX+'0', JSON.stringify({ d:t, data }));
-    }
-  } catch(e) { /* 容量超過等は無視（本体保存を優先） */ }
-}
-function isEmptyData(d) {
-  const hasEntries = d.months && Object.values(d.months).some(arr => arr && arr.length > 0);
-  return !hasEntries && (!d.fixedCosts || d.fixedCosts.length === 0);
-}
-function checkRestore() {
-  try {
-    const cur = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
-    if (cur && !isEmptyData(migrate(cur))) return; // 本体が生きていれば何もしない
-    for (const slot of ['0','1','2']) {
-      const bak = JSON.parse(localStorage.getItem(BAK_PREFIX+slot) || 'null');
-      if (bak && bak.data && !isEmptyData(migrate(bak.data))) {
-        const n = Object.values(bak.data.months||{}).reduce((s,a)=>s+a.length,0);
-        if (confirm(`データが空ですが、${bak.d} のバックアップ（記録${n}件）が見つかりました。\n復元しますか？`)) {
-          save(migrate(bak.data));
-          location.reload();
-        }
-        return;
-      }
-    }
-  } catch(e) {}
-}
-function getEntries(data, month) { return data.months[month] || []; }
-function setEntries(data, month, entries) { data.months[month] = entries; }
-function migrate(data) {
-  if (!data.months) data.months = {};
-  if (!data.customKeywords) data.customKeywords = {};
-  if (!Array.isArray(data.fixedCosts)) data.fixedCosts = [];
-  if (typeof data.income !== 'number') data.income = 0;
-  if (!data.quickTags || !Array.isArray(data.quickTags.stores) || !Array.isArray(data.quickTags.items)) {
-    data.quickTags = { stores:[...DEFAULT_QUICK_TAGS.stores], items:[...DEFAULT_QUICK_TAGS.items] };
-  }
-  if (data.entries && data.entries.length > 0) {
-    const m = data.month || currentMonth();
-    if (!data.months[m]) data.months[m] = [];
-    data.months[m] = [...data.entries, ...data.months[m]];
-    delete data.entries; delete data.month; save(data);
-  }
-  Object.keys(data.months).forEach(m => {
-    data.months[m] = data.months[m].map(e => { if (!e.date) e.date='—'; return e; });
-  });
-  return data;
-}
-function fmt(n) { return '¥' + Math.abs(n).toLocaleString('ja-JP'); }
-
-// 表示月管理
+// ═══════════════════════════════════════════════
+//  状態
+// ═══════════════════════════════════════════════
+let me = null;               // Firebase Auth ユーザー
+let myDoc = null;            // users/{uid} の内容（デフォルト補完済み）
+let household = null;        // { id, name, members:[uid], ... }
+const memberDocs = {};       // uid -> users/{uid}
+const memberSubs = {};       // uid -> unsubscribe
+const entriesCache = {};     // `${uid}|${month}` -> [entry]
+const entrySubs = {};        // `${uid}|${month}` -> unsubscribe
+const pendingKeys = new Set();
+let unsubMe = null, unsubHousehold = null;
+let scope = 'me';
+let activeTab = 'expense';
 let viewMonth = currentMonth();
-function monthToLabel(ym) {
-  const [y, m] = ym.split('-');
-  return `${y}年${parseInt(m)}月`;
-}
-function addMonths(ym, delta) {
-  const [y, m] = ym.split('-').map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-}
-function changeMonth(delta) {
-  const next = addMonths(viewMonth, delta);
-  if (next > currentMonth()) return;
-  viewMonth = next;
-  render();
-}
-
-let selectedCategory = 'private';
 let selectedMemoCat = 'auto';
 let pendingTheme = 'system';
-let editingId = null;
-let editingCat = 'private';
-let editingMemoCat = 'auto';
+let editingId = null, editingMemoCat = 'auto';
+let selectedFcCat = 'fother', fcEditingId = null, fcEditingCat = 'fother';
+let legacyBannerHidden = false;
+let releaseChecked = false;
 
-function applyTheme(t) { document.documentElement.setAttribute('data-theme', t); }
-function setTheme(t) {
-  pendingTheme = t;
-  ['light','dark','system'].forEach(x => {
-    document.getElementById('theme'+x.charAt(0).toUpperCase()+x.slice(1)).className = 'theme-opt'+(x===t?' active':'');
+function defaultUserData() {
+  return { limit:100000, theme:'system', customKeywords:{}, fixedCosts:[], income:0,
+           quickTags:{ stores:[...DEFAULT_QUICK_TAGS.stores], items:[...DEFAULT_QUICK_TAGS.items] }, householdId:null };
+}
+function normalizeUser(d) {
+  const base = defaultUserData();
+  d = Object.assign({}, base, d || {});
+  if (typeof d.limit !== 'number') d.limit = base.limit;
+  if (!d.customKeywords || typeof d.customKeywords !== 'object') d.customKeywords = {};
+  if (!Array.isArray(d.fixedCosts)) d.fixedCosts = [];
+  if (typeof d.income !== 'number') d.income = 0;
+  if (!d.quickTags || !Array.isArray(d.quickTags.stores) || !Array.isArray(d.quickTags.items)) d.quickTags = base.quickTags;
+  return d;
+}
+const D = () => myDoc || normalizeUser({});
+const userRef = (uid = me.uid) => doc(db, 'users', uid);
+const expensesCol = (uid = me.uid) => collection(db, 'users', uid, 'expenses');
+function saveUser(patch, label) { return fire(setDoc(userRef(), patch, { merge:true }), label); }
+
+function familyActive() { return !!(household && household.members && household.members.length > 1); }
+function scopeUids() {
+  if (scope === 'family' && household && household.members) return household.members.filter(u => u === me.uid || memberDocs[u]);
+  return [me.uid];
+}
+function userData(uid) { return uid === me.uid ? D() : normalizeUser(memberDocs[uid]); }
+function memberName(uid) {
+  const d = uid === me.uid ? myDoc : memberDocs[uid];
+  return (d && d.displayName) || (uid === me.uid ? '自分' : 'メンバー');
+}
+function memberColor(uid) {
+  const idx = household && household.members ? household.members.indexOf(uid) : 0;
+  return MEMBER_COLORS[Math.max(idx,0) % MEMBER_COLORS.length];
+}
+function entriesOf(uid, month) { return entriesCache[`${uid}|${month}`] || []; }
+function viewEntries(month) {
+  return scopeUids().flatMap(u => entriesOf(u, month).map(e => ({ ...e, _uid:u })))
+    .sort((a,b) => (b.ts||0) - (a.ts||0));
+}
+
+// ═══════════════════════════════════════════════
+//  リアルタイム同期（購読管理）
+// ═══════════════════════════════════════════════
+function updateSyncDot() {
+  const dot = $('syncDot');
+  if (!navigator.onLine) { dot.className = 'sync-dot offline'; dot.title = 'オフライン（復帰後に自動同期）'; return; }
+  dot.className = 'sync-dot' + (pendingKeys.size ? ' pending' : '');
+  dot.title = pendingKeys.size ? '同期中…' : '同期済み';
+}
+window.addEventListener('online', updateSyncDot);
+window.addEventListener('offline', updateSyncDot);
+
+function syncEntrySubs() {
+  if (!me) return;
+  const uids = new Set([me.uid, ...((household && household.members) || [])]);
+  const months = new Set([currentMonth(), viewMonth]);
+  const need = new Set();
+  uids.forEach(u => months.forEach(m => need.add(`${u}|${m}`)));
+  Object.keys(entrySubs).forEach(k => {
+    if (!need.has(k)) { entrySubs[k](); delete entrySubs[k]; delete entriesCache[k]; pendingKeys.delete(k); }
+  });
+  need.forEach(k => {
+    if (entrySubs[k]) return;
+    const [u, m] = k.split('|');
+    const q = query(expensesCol(u), where('month', '==', m));
+    entrySubs[k] = onSnapshot(q, { includeMetadataChanges: u === me.uid }, snap => {
+      entriesCache[k] = snap.docs.map(d => ({ id:d.id, ...d.data() })).sort((a,b)=>(b.ts||0)-(a.ts||0));
+      if (u === me.uid) { snap.metadata.hasPendingWrites ? pendingKeys.add(k) : pendingKeys.delete(k); updateSyncDot(); }
+      renderAll();
+    }, err => {
+      // 家族から抜けたメンバー等は権限エラーになる → 表示から外す
+      console.warn('entries', k, err.code);
+      delete entriesCache[k]; if (entrySubs[k]) { entrySubs[k](); delete entrySubs[k]; }
+      renderAll();
+    });
   });
 }
-function setCategory(cat) {
-  selectedCategory = cat;
-  document.getElementById('catPrivate').className = 'cat-btn'+(cat==='private'?' active':'');
 
+function subscribeHousehold(hid) {
+  if (unsubHousehold) { unsubHousehold(); unsubHousehold = null; }
+  household = null;
+  if (!hid) { syncMemberSubs(); syncEntrySubs(); renderAll(); return; }
+  unsubHousehold = onSnapshot(doc(db, 'households', hid), snap => {
+    household = snap.exists() ? { id:snap.id, ...snap.data() } : null;
+    if (household && !household.members.includes(me.uid)) household = null;
+    syncMemberSubs(); syncEntrySubs(); renderAll();
+  }, err => { console.warn('household', err.code); household = null; syncMemberSubs(); renderAll(); });
 }
-function setEditCat(cat) {
-  editingCat = cat;
-  document.getElementById('editCatPrivate').className = 'cat-btn'+(cat==='private'?' active':'');
 
+function syncMemberSubs() {
+  const want = new Set(((household && household.members) || []).filter(u => u !== me.uid));
+  Object.keys(memberSubs).forEach(u => {
+    if (!want.has(u)) { memberSubs[u](); delete memberSubs[u]; delete memberDocs[u]; }
+  });
+  want.forEach(u => {
+    if (memberSubs[u]) return;
+    memberSubs[u] = onSnapshot(userRef(u), snap => {
+      if (snap.exists()) memberDocs[u] = snap.data(); else delete memberDocs[u];
+      renderAll();
+    }, err => { console.warn('member', u, err.code); delete memberDocs[u]; renderAll(); });
+  });
+  if (!familyActive() && scope === 'family') scope = 'me';
 }
-function setMemoCat(key) {
-  selectedMemoCat = selectedMemoCat === key ? 'auto' : key;
-  renderMemoCats();
+
+function teardown() {
+  if (unsubMe) unsubMe(); unsubMe = null;
+  if (unsubHousehold) unsubHousehold(); unsubHousehold = null;
+  Object.keys(memberSubs).forEach(u => { memberSubs[u](); delete memberSubs[u]; delete memberDocs[u]; });
+  Object.keys(entrySubs).forEach(k => { entrySubs[k](); delete entrySubs[k]; delete entriesCache[k]; });
+  pendingKeys.clear();
+  myDoc = null; household = null; scope = 'me'; releaseChecked = false; legacyBannerHidden = false;
 }
-function setEditMemoCat(key) {
-  editingMemoCat = editingMemoCat === key ? 'auto' : key;
-  renderEditMemoCats();
+
+// ═══════════════════════════════════════════════
+//  認証
+// ═══════════════════════════════════════════════
+let authMode = 'login';
+function setAuthMode(mode) {
+  authMode = mode;
+  $('authTabLogin').className = 'tab-btn' + (mode==='login'?' active':'');
+  $('authTabSignup').className = 'tab-btn' + (mode==='signup'?' active':'');
+  $('nameField').style.display = mode==='signup' ? '' : 'none';
+  $('passHint').style.display = mode==='signup' ? '' : 'none';
+  $('resetLink').style.display = mode==='login' ? '' : 'none';
+  $('authSubmit').textContent = mode==='login' ? 'ログイン' : '登録してはじめる';
+  $('authPass').autocomplete = mode==='login' ? 'current-password' : 'new-password';
+  $('authError').textContent = '';
 }
+const AUTH_ERRORS = {
+  'auth/invalid-email':'メールアドレスの形式が正しくありません',
+  'auth/missing-password':'パスワードを入力してください',
+  'auth/weak-password':'パスワードは6文字以上にしてください',
+  'auth/email-already-in-use':'このメールアドレスは登録済みです。ログインしてください',
+  'auth/invalid-credential':'メールアドレスまたはパスワードが違います',
+  'auth/wrong-password':'メールアドレスまたはパスワードが違います',
+  'auth/user-not-found':'メールアドレスまたはパスワードが違います',
+  'auth/too-many-requests':'試行回数が多すぎます。しばらく待ってからお試しください',
+  'auth/network-request-failed':'通信できませんでした。電波状況を確認してください',
+  'auth/operation-not-allowed':'Firebaseでメール/パスワード認証が有効になっていません',
+};
+async function submitAuth(ev) {
+  ev.preventDefault();
+  const email = $('authEmail').value.trim();
+  const pass = $('authPass').value;
+  const name = $('authName').value.trim();
+  $('authError').textContent = '';
+  if (authMode === 'signup' && !name) { $('authError').textContent = '表示名を入力してください'; return; }
+  $('authSubmit').disabled = true;
+  try {
+    if (authMode === 'signup') {
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      await setDoc(doc(db, 'users', cred.user.uid), { displayName:name, email, createdAt:Date.now() }, { merge:true });
+    } else {
+      await signInWithEmailAndPassword(auth, email, pass);
+    }
+    $('authPass').value = '';
+  } catch(e) {
+    $('authError').textContent = AUTH_ERRORS[e.code] || `エラー：${e.code || e.message}`;
+  } finally {
+    $('authSubmit').disabled = false;
+  }
+}
+async function resetPassword() {
+  const email = $('authEmail').value.trim();
+  if (!email) { $('authError').textContent = 'メールアドレスを入力してから押してください'; return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    $('authError').textContent = '';
+    toast('パスワード再設定メールを送りました', 4000);
+  } catch(e) {
+    $('authError').textContent = AUTH_ERRORS[e.code] || `エラー：${e.code || e.message}`;
+  }
+}
+async function logout() {
+  if (!confirm('ログアウトしますか？\n（データはクラウドに残ります）')) return;
+  $('modalOverlay').classList.remove('open');
+  await signOut(auth);
+}
+
+function showGate(which) {
+  $('loadingGate').classList.toggle('open', which === 'loading');
+  $('authGate').classList.toggle('open', which === 'auth');
+}
+
+function startSession(user) {
+  me = user;
+  showGate('loading');
+  $('loadingText').textContent = 'データを同期しています…';
+  unsubMe = onSnapshot(userRef(), { includeMetadataChanges:true }, snap => {
+    if (!snap.exists()) {
+      // サーバーで未作成を確認できた場合のみ初期化（キャッシュ上の「無い」で上書きしない）
+      if (!snap.metadata.fromCache) setDoc(userRef(), { ...defaultUserData(), email:user.email, createdAt:Date.now() }, { merge:true }).catch(console.error);
+      if (!myDoc && snap.metadata.fromCache && navigator.onLine) return;
+    }
+    const prevHid = myDoc ? myDoc.householdId : undefined;
+    myDoc = normalizeUser(snap.exists() ? snap.data() : {});
+    snap.metadata.hasPendingWrites ? pendingKeys.add('me') : pendingKeys.delete('me');
+    updateSyncDot();
+    applyTheme(myDoc.theme || 'system');
+    if (prevHid !== myDoc.householdId) subscribeHousehold(myDoc.householdId || null);
+    showGate(null);
+    renderAll();
+    if (!releaseChecked) { releaseChecked = true; checkRelease(); }
+  }, err => {
+    console.error(err);
+    $('loadingText').textContent = `読み込みに失敗しました（${err.code}）。Firestoreのルール設定を確認してください。`;
+  });
+  syncEntrySubs();
+}
+
+// ═══════════════════════════════════════════════
+//  画面描画
+// ═══════════════════════════════════════════════
+function applyTheme(t) { document.documentElement.setAttribute('data-theme', t); }
+
+function renderAll() {
+  if (!me || !myDoc) return;
+  $('headerVersion').textContent = CURRENT_VERSION;
+  $('userChipName').textContent = memberName(me.uid);
+  const fam = familyActive();
+  $('scopeBar').classList.toggle('show', fam);
+  $('scopeMe').className = 'scope-btn' + (scope==='me'?' active':'');
+  $('scopeFamily').className = 'scope-btn' + (scope==='family'?' active':'');
+  renderLegacyBanner();
+  render();
+  renderFixed();
+  renderQuickTags();
+  if ($('modalOverlay').classList.contains('open')) renderFamilySection();
+}
+
+function setScope(s) { scope = s; renderAll(); }
+
 function renderMemoCats() {
-  document.getElementById('memoCats').innerHTML = CAT_DEFS.filter(c=>c.key!=='other').map(c =>
+  $('memoCats').innerHTML = CAT_DEFS.filter(c=>c.key!=='other').map(c =>
     `<button class="memo-cat-btn${selectedMemoCat===c.key?' active':''}" onclick="setMemoCat('${c.key}')">${c.emoji} ${c.label}</button>`
   ).join('');
 }
 function renderEditMemoCats() {
-  document.getElementById('editMemoCats').innerHTML = CAT_DEFS.filter(c=>c.key!=='other').map(c =>
+  $('editMemoCats').innerHTML = CAT_DEFS.filter(c=>c.key!=='other').map(c =>
     `<button class="memo-cat-btn${editingMemoCat===c.key?' active':''}" onclick="setEditMemoCat('${c.key}')">${c.emoji} ${c.label}</button>`
   ).join('');
 }
+function setMemoCat(key) { selectedMemoCat = selectedMemoCat === key ? 'auto' : key; renderMemoCats(); }
+function setEditMemoCat(key) { editingMemoCat = editingMemoCat === key ? 'auto' : key; renderEditMemoCats(); }
 
-function addExpense() {
-  const val = parseInt(document.getElementById('amountInput').value);
-  if (!val || val <= 0) { document.getElementById('amountInput').focus(); return; }
-  const memo = document.getElementById('memoInput').value.trim();
-  const data = load();
-  const cm = currentMonth();
-  const entries = getEntries(data, cm);
-  const now = new Date();
-  entries.unshift({ id:Date.now(), amount:val, category:selectedCategory, memo, catOverride:selectedMemoCat,
-    date:`${now.getMonth()+1}/${now.getDate()}`, time:`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}` });
-  setEntries(data, cm, entries);
-  save(data);
-  document.getElementById('amountInput').value = '';
-  document.getElementById('memoInput').value = '';
-  selectedMemoCat = 'auto';
-  renderMemoCats();
-  renderQuickTags();
-  // 過去月表示中なら現在月に戻す
-  if (viewMonth !== cm) viewMonth = cm;
+function changeMonth(delta) {
+  const next = addMonths(viewMonth, delta);
+  if (next > currentMonth()) return;
+  viewMonth = next;
+  syncEntrySubs();
   render();
-}
-
-function toggleBreakdown() {
-  document.getElementById('breakdownBody').classList.toggle('open');
-  document.getElementById('breakdownToggle').classList.toggle('open');
-}
-
-function openEditModal(id) {
-  const data = load();
-  const entry = getEntries(data, viewMonth).find(e => e.id === id);
-  if (!entry) return;
-  editingId = id;
-  document.getElementById('editAmount').value = entry.amount;
-  document.getElementById('editMemo').value = entry.memo || '';
-  editingMemoCat = entry.catOverride || 'auto';
-  setEditCat(entry.category);
-  renderEditMemoCats();
-  document.getElementById('editOverlay').classList.add('open');
-}
-function closeEditModal(e) {
-  if (e.target === document.getElementById('editOverlay'))
-    document.getElementById('editOverlay').classList.remove('open');
-}
-function saveEdit() {
-  const val = parseInt(document.getElementById('editAmount').value);
-  if (!val || val <= 0) { document.getElementById('editAmount').focus(); return; }
-  const memo = document.getElementById('editMemo').value.trim();
-  const data = load();
-  const entries = getEntries(data, viewMonth);
-  const idx = entries.findIndex(e => e.id === editingId);
-  if (idx !== -1) { entries[idx].amount=val; entries[idx].memo=memo; entries[idx].category=editingCat; entries[idx].catOverride=editingMemoCat; }
-  setEntries(data, viewMonth, entries);
-  save(data);
-  document.getElementById('editOverlay').classList.remove('open');
-  render();
-}
-function deleteFromEdit() {
-  if (!confirm('この項目を削除しますか？')) return;
-  const data = load();
-  setEntries(data, viewMonth, getEntries(data, viewMonth).filter(e => e.id !== editingId));
-  save(data);
-  document.getElementById('editOverlay').classList.remove('open');
-  render();
-}
-function confirmClearMonth() {
-  if (!confirm(`${monthToLabel(viewMonth)}の記録をすべてリセットしますか？`)) return;
-  const data = load();
-  setEntries(data, viewMonth, []);
-  save(data); render();
-}
-
-function shareLog() {
-  const data = load();
-  const entries = getEntries(data, viewMonth);
-  const privateLimit = data.limit;
-  const privateSpent = entries.reduce((s,e)=>s+e.amount,0);
-  const remaining = privateLimit - privateSpent;
-  const [y,m] = viewMonth.split('-');
-  const lines = [
-    `【残り枠ログ】${y}年${parseInt(m)}月`, '',
-    `支払い上限：${fmt(privateLimit)}`, `使用済：${fmt(privateSpent)}`,
-    `残り枠：${fmt(remaining)}`, '',
-    `── 明細 ──`,
-    ...entries.map(e=>`${e.date||'—'} ${e.time}　${getCat(detectCat(e.memo,e.catOverride,data)).label}　${fmt(e.amount)}　${e.memo||''}`)
-  ];
-  const text = lines.join('\n');
-  if (navigator.share) { navigator.share({ title:'残り枠ログ', text }); }
-  else { navigator.clipboard.writeText(text).then(()=>alert('クリップボードにコピーしました')); }
 }
 
 function render() {
-  const data = load();
   const cm = currentMonth();
   const isCurrentMonth = viewMonth === cm;
-  const entries = getEntries(data, viewMonth);
-  const privateLimit = data.limit;
-  const privateEntries = entries;
-  const privateSpent = privateEntries.reduce((s,e)=>s+e.amount,0);
-  const remaining = privateLimit - privateSpent;
-  const pct = privateLimit > 0 ? Math.min((privateSpent/privateLimit)*100,100) : 0;
+  const fam = scope === 'family';
+  const uids = scopeUids();
+  const entries = viewEntries(viewMonth);
+  const limit = uids.reduce((s,u) => s + (userData(u).limit || 0), 0);
+  const spent = entries.reduce((s,e)=>s+e.amount,0);
+  const remaining = limit - spent;
+  const pct = limit > 0 ? Math.min((spent/limit)*100,100) : 0;
 
-  // 過去月表示中の注記
-  document.getElementById('inputNote').className = 'input-note' + (isCurrentMonth ? '' : ' show');
-
-  // 月ナビ
-  const prev = addMonths(viewMonth, -1);
-  const next = addMonths(viewMonth, 1);
-  const hasPrev = Object.keys(data.months).some(m => m === prev) || true; // 常に前月には戻れる
-  const hasNext = next <= cm;
-  document.getElementById('prevMonthBtn').disabled = false;
-  document.getElementById('nextMonthBtn').disabled = !hasNext;
-  document.getElementById('monthNavLabel').textContent = monthToLabel(viewMonth);
-
+  $('inputNote').className = 'input-note' + (isCurrentMonth ? '' : ' show');
+  $('nextMonthBtn').disabled = !(addMonths(viewMonth,1) <= cm);
+  $('monthNavLabel').textContent = monthToLabel(viewMonth);
   if (isCurrentMonth) {
     const d = new Date();
     const lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
-    document.getElementById('monthNavDays').textContent = `残り ${lastDay - d.getDate()}日`;
+    $('monthNavDays').textContent = `残り ${lastDay - d.getDate()}日`;
   } else {
-    document.getElementById('monthNavDays').textContent = '過去月';
+    $('monthNavDays').textContent = '過去月';
   }
 
-  // ヒーロー
-  const heroEl = document.getElementById('heroAmount');
-  heroEl.textContent = isCurrentMonth ? fmt(remaining) : fmt(privateSpent);
-  if (!isCurrentMonth) { heroEl.className = 'hero-amount past'; }
-  else { heroEl.className = 'hero-amount '+(remaining<0?'over':pct>=80?'warn':'ok'); }
-  document.getElementById('heroSub').textContent = isCurrentMonth
-    ? `私用上限 ${fmt(privateLimit)} のうち ${fmt(privateSpent)} 使用`
-    : `${monthToLabel(viewMonth)}の私用支出合計`;
-
-  const bar = document.getElementById('progressBar');
+  const heroEl = $('heroAmount');
+  heroEl.textContent = isCurrentMonth ? signed(remaining) : fmt(spent);
+  heroEl.className = 'hero-amount ' + (!isCurrentMonth ? 'past' : remaining<0?'over':pct>=80?'warn':'ok');
+  $('heroSub').textContent = isCurrentMonth
+    ? `${fam?'家族の上限合計':'私用上限'} ${fmt(limit)} のうち ${fmt(spent)} 使用`
+    : `${monthToLabel(viewMonth)}の${fam?'家族の':'私用'}支出合計`;
+  const bar = $('progressBar');
   bar.style.width = pct+'%';
   bar.style.background = pct>=100?'var(--red)':pct>=80?'var(--amber)':'var(--green)';
 
-  document.getElementById('statsRow').innerHTML =
-    `上限 <span>${fmt(data.limit)}</span> &nbsp;使用済 <span>${fmt(privateSpent)}</span>`;
+  let stats = `上限 <span>${fmt(limit)}</span> &nbsp;使用済 <span>${fmt(spent)}</span>`;
+  if (fam) {
+    stats += '<br>' + uids.map(u => {
+      const s = entries.filter(e=>e._uid===u).reduce((a,e)=>a+e.amount,0);
+      return `<b style="color:${memberColor(u)};font-weight:500;">${esc(memberName(u))}</b> <span>${fmt(s)}</span>`;
+    }).join(' &nbsp;');
+  }
+  $('statsRow').innerHTML = stats;
 
-  const alert = document.getElementById('alertBanner');
-  if (isCurrentMonth && remaining < 0) { alert.textContent=`⚠️ 上限を ${fmt(-remaining)} オーバーしています`; alert.className='alert over'; }
-  else if (isCurrentMonth && pct>=80) { alert.textContent=`残り枠が ${Math.round(100-pct)}% を切りました`; alert.className='alert warn'; }
-  else { alert.className='alert'; }
+  const alertEl = $('alertBanner');
+  if (isCurrentMonth && remaining < 0) { alertEl.textContent=`⚠️ 上限を ${fmt(-remaining)} オーバーしています`; alertEl.className='alert over'; }
+  else if (isCurrentMonth && pct>=80) { alertEl.textContent=`残り枠が ${Math.round(100-pct)}% を切りました`; alertEl.className='alert warn'; }
+  else { alertEl.className='alert'; }
 
-  // Breakdown
+  // Breakdown（カテゴリ別。家族表示ならメンバー別も）
   const catTotals = {};
-  privateEntries.forEach(e => {
-    const ck = detectCat(e.memo, e.catOverride, data);
+  entries.forEach(e => {
+    const ck = detectCat(e.memo, e.catOverride, userData(e._uid));
     catTotals[ck] = (catTotals[ck]||0) + e.amount;
   });
-  document.getElementById('breakdownList').innerHTML = CAT_DEFS.map(c => {
+  let bd = CAT_DEFS.map(c => {
     const amt = catTotals[c.key] || 0;
-    const kws = c.key==='other' ? [] : getKeywords(data, c.key);
-    const hint = c.key==='other' ? 'その他すべて' : kws.slice(0,4).join('・')+'等';
+    const hint = c.key==='other' ? 'その他すべて' : getKeywords(D(), c.key).slice(0,4).map(esc).join('・')+'等';
     return `<div class="breakdown-item" style="background:${c.bg};border-color:${c.border};">
       <div class="breakdown-left">
         <div class="breakdown-dot" style="background:${amt>0?c.color:'var(--border)'}"></div>
@@ -833,69 +1042,333 @@ function render() {
       <div class="breakdown-amount" style="color:${amt>0?'var(--text)':'var(--text3)'};">${amt>0?fmt(amt):'—'}</div>
     </div>`;
   }).join('');
+  if (fam) {
+    bd += '<div class="breakdown-sub">BY MEMBER</div>' + uids.map(u => {
+      const amt = entries.filter(e=>e._uid===u).reduce((a,e)=>a+e.amount,0);
+      const lim = userData(u).limit || 0;
+      return `<div class="breakdown-item" style="background:rgba(136,136,136,0.06);border-color:var(--border);">
+        <div class="breakdown-left"><div class="breakdown-dot" style="background:${memberColor(u)}"></div>
+          <div><div class="breakdown-label">${esc(memberName(u))}</div><div class="breakdown-hint">上限 ${fmt(lim)}</div></div></div>
+        <div class="breakdown-amount">${amt>0?fmt(amt):'—'}</div></div>`;
+    }).join('');
+  }
+  $('breakdownList').innerHTML = bd;
 
   // History
-  const list = document.getElementById('historyList');
+  $('editHint').textContent = fam ? '自分の項目のみタップで編集できます' : '項目をタップで編集';
+  const list = $('historyList');
   if (entries.length === 0) {
     list.innerHTML = '<div class="empty-state">記録がありません</div>';
   } else {
-    list.innerHTML = entries.slice(0,50).map(e => {
-      let bg, border, catColor, catLabel;
-      const c = getCat(detectCat(e.memo, e.catOverride, data));
-        bg=c.bg; border=c.border; catColor=c.color; catLabel=`${c.emoji} ${c.label}`;
-      return `<div class="history-item" style="background:${bg};border-color:${border};" onclick="openEditModal(${e.id})">
+    list.innerHTML = entries.slice(0,100).map(e => {
+      const c = getCat(detectCat(e.memo, e.catOverride, userData(e._uid)));
+      const mine = e._uid === me.uid;
+      const badge = fam ? `<span class="member-badge" style="color:${memberColor(e._uid)};">${esc(memberName(e._uid))}</span>` : '';
+      return `<div class="history-item${mine?'':' readonly'}" style="background:${c.bg};border-color:${c.border};" ${mine?`onclick="openEditModal('${esc(e.id)}')"`:''}>
         <div class="history-left">
-          <div class="history-cat" style="color:${catColor};">${catLabel} · ${e.date||'—'} ${e.time}</div>
-          ${e.memo?`<div class="history-memo">${e.memo}</div>`:'<div class="history-memo" style="color:var(--text3)">—</div>'}
+          <div class="history-cat" style="color:${c.color};">${badge}<span>${c.emoji} ${c.label} · ${esc(e.date||'—')} ${esc(e.time||'')}</span></div>
+          ${e.memo?`<div class="history-memo">${esc(e.memo)}</div>`:'<div class="history-memo" style="color:var(--text3)">—</div>'}
         </div>
         <div class="history-right">
           <div class="history-amount">${fmt(e.amount)}</div>
-          <span style="color:var(--text3);font-size:13px;margin-left:8px;">›</span>
+          ${mine?'<span style="color:var(--text3);font-size:13px;margin-left:8px;">›</span>':''}
         </div>
       </div>`;
     }).join('');
   }
-
-  // 固定費タブの残金表示も同期
-  if (typeof renderFixed === 'function') renderFixed();
 }
 
-// 設定モーダル
-function openModal() {
-  const data = load();
-  document.getElementById('settingLimit').value = data.limit;
-
-  pendingTheme = data.theme || 'system';
-  setTheme(pendingTheme);
-  renderKwSections(data);
-  renderQtSections(data);
-  updateBackupStatus();
-  document.getElementById('modalOverlay').classList.add('open');
-}
-function closeModal(e) {
-  if (e.target === document.getElementById('modalOverlay'))
-    document.getElementById('modalOverlay').classList.remove('open');
-}
-function saveSettings() {
-  const data = load();
-  const limit = parseInt(document.getElementById('settingLimit').value);
-  if (limit > 0) data.limit = limit;
-  data.theme = pendingTheme;
-  save(data); applyTheme(pendingTheme);
-  document.getElementById('modalOverlay').classList.remove('open');
+// ═══════════════════════════════════════════════
+//  支出の追加・編集・削除
+// ═══════════════════════════════════════════════
+function addExpense() {
+  const val = parseInt($('amountInput').value);
+  if (!val || val <= 0) { $('amountInput').focus(); return; }
+  if (val > 100000000) { toast('金額が大きすぎます'); return; }
+  const memo = $('memoInput').value.trim();
+  const now = new Date();
+  const cm = currentMonth();
+  const ref = doc(expensesCol());
+  fire(setDoc(ref, {
+    amount:val, memo, catOverride:selectedMemoCat, category:'private', month:cm, ts:now.getTime(),
+    date:`${now.getMonth()+1}/${now.getDate()}`,
+    time:`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
+  }), '記録');
+  $('amountInput').value = '';
+  $('memoInput').value = '';
+  selectedMemoCat = 'auto';
+  renderMemoCats();
+  renderQuickTags();
+  if (viewMonth !== cm) { viewMonth = cm; syncEntrySubs(); }
   render();
 }
 
-// キーワード管理
-function renderKwSections(data) {
-  const wrap = document.getElementById('kwSections');
-  wrap.innerHTML = CAT_DEFS.filter(c=>c.key!=='other').map(c => {
-    const kws = getKeywords(data, c.key);
+function toggleBreakdown() {
+  $('breakdownBody').classList.toggle('open');
+  $('breakdownToggle').classList.toggle('open');
+}
+
+function openEditModal(id) {
+  const entry = entriesOf(me.uid, viewMonth).find(e => e.id === id);
+  if (!entry) return;
+  editingId = id;
+  $('editAmount').value = entry.amount;
+  $('editMemo').value = entry.memo || '';
+  editingMemoCat = entry.catOverride || 'auto';
+  renderEditMemoCats();
+  $('editOverlay').classList.add('open');
+}
+function closeEditModal(e) { if (e.target === $('editOverlay')) $('editOverlay').classList.remove('open'); }
+function saveEdit() {
+  const val = parseInt($('editAmount').value);
+  if (!val || val <= 0) { $('editAmount').focus(); return; }
+  fire(setDoc(doc(expensesCol(), editingId), { amount:val, memo:$('editMemo').value.trim(), catOverride:editingMemoCat }, { merge:true }));
+  $('editOverlay').classList.remove('open');
+}
+function deleteFromEdit() {
+  if (!confirm('この項目を削除しますか？')) return;
+  fire(deleteDoc(doc(expensesCol(), editingId)), '削除');
+  $('editOverlay').classList.remove('open');
+}
+async function confirmClearMonth() {
+  const mine = entriesOf(me.uid, viewMonth);
+  if (!mine.length) { toast('自分の記録はありません'); return; }
+  const note = scope==='family' ? '\n（家族の記録は消えません）' : '';
+  if (!confirm(`${monthToLabel(viewMonth)}の自分の記録（${mine.length}件）をすべて削除しますか？${note}`)) return;
+  for (let i=0; i<mine.length; i+=400) {
+    const b = writeBatch(db);
+    mine.slice(i,i+400).forEach(e => b.delete(doc(expensesCol(), e.id)));
+    if (!(await fire(b.commit(), '削除'))) return;
+  }
+}
+
+function shareLog() {
+  const fam = scope === 'family';
+  const uids = scopeUids();
+  const entries = viewEntries(viewMonth);
+  const limit = uids.reduce((s,u)=>s+(userData(u).limit||0),0);
+  const spent = entries.reduce((s,e)=>s+e.amount,0);
+  const [y,m] = viewMonth.split('-');
+  const lines = [
+    `【残り枠ログ${fam?'（家族）':''}】${y}年${parseInt(m)}月`, '',
+    `支払い上限：${fmt(limit)}`, `使用済：${fmt(spent)}`, `残り枠：${signed(limit-spent)}`, '',
+    `── 明細 ──`,
+    ...entries.map(e=>`${e.date||'—'} ${e.time||''}　${fam?memberName(e._uid)+'　':''}${getCat(detectCat(e.memo,e.catOverride,userData(e._uid))).label}　${fmt(e.amount)}　${e.memo||''}`)
+  ];
+  const text = lines.join('\n');
+  if (navigator.share) navigator.share({ title:'残り枠ログ', text }).catch(()=>{});
+  else navigator.clipboard.writeText(text).then(()=>toast('クリップボードにコピーしました'));
+}
+
+// ═══════════════════════════════════════════════
+//  固定費タブ
+// ═══════════════════════════════════════════════
+function switchTab(tab) {
+  activeTab = tab;
+  $('tabExpense').style.display = tab==='expense' ? '' : 'none';
+  $('tabFixed').style.display   = tab==='fixed'   ? '' : 'none';
+  $('tabBtnExpense').className = 'tab-btn'+(tab==='expense'?' active':'');
+  $('tabBtnFixed').className   = 'tab-btn'+(tab==='fixed'?' active':'');
+  if (tab==='fixed') renderFixed();
+}
+function renderFcCats() {
+  $('fcCats').innerHTML = FIXED_CATS.map(c =>
+    `<button class="memo-cat-btn${selectedFcCat===c.key?' active':''}" onclick="setFcCat('${c.key}')">${c.emoji} ${c.label}</button>`).join('');
+}
+function setFcCat(key) { selectedFcCat = key; renderFcCats(); }
+function renderFcEditCats() {
+  $('fcEditCats').innerHTML = FIXED_CATS.map(c =>
+    `<button class="memo-cat-btn${fcEditingCat===c.key?' active':''}" onclick="setFcEditCat('${c.key}')">${c.emoji} ${c.label}</button>`).join('');
+}
+function setFcEditCat(key) { fcEditingCat = key; renderFcEditCats(); }
+
+function addFixedCost() {
+  const name = $('fcName').value.trim();
+  const amount = parseInt($('fcAmount').value);
+  if (!name) { $('fcName').focus(); return; }
+  if (!amount || amount <= 0) { $('fcAmount').focus(); return; }
+  const list = [...D().fixedCosts, { id:Date.now(), name, amount, startYm:$('fcStart').value||currentMonth(), cat:selectedFcCat }];
+  saveUser({ fixedCosts:list });
+  $('fcName').value = ''; $('fcAmount').value = ''; $('fcStart').value = '';
+  selectedFcCat = 'fother'; renderFcCats();
+}
+function saveIncome() {
+  const val = parseInt($('incomeInput').value);
+  saveUser({ income:(val && val > 0) ? val : 0 });
+}
+function openFcEditModal(id) {
+  const item = D().fixedCosts.find(f => f.id === id);
+  if (!item) return;
+  fcEditingId = id;
+  $('fcEditName').value = item.name;
+  $('fcEditAmount').value = item.amount;
+  $('fcEditStart').value = item.startYm || '';
+  fcEditingCat = item.cat || 'fother';
+  renderFcEditCats();
+  $('fcEditOverlay').classList.add('open');
+}
+function closeFcEditModal(e) { if (e.target === $('fcEditOverlay')) $('fcEditOverlay').classList.remove('open'); }
+function saveFcEdit() {
+  const name = $('fcEditName').value.trim();
+  const amount = parseInt($('fcEditAmount').value);
+  if (!name || !amount || amount <= 0) return;
+  const list = D().fixedCosts.map(f => f.id !== fcEditingId ? f :
+    { ...f, name, amount, startYm:$('fcEditStart').value || f.startYm, cat:fcEditingCat });
+  saveUser({ fixedCosts:list });
+  $('fcEditOverlay').classList.remove('open');
+}
+function deleteFcFromEdit() {
+  if (!confirm('この固定費を削除しますか？')) return;
+  saveUser({ fixedCosts:D().fixedCosts.filter(f => f.id !== fcEditingId) }, '削除');
+  $('fcEditOverlay').classList.remove('open');
+}
+
+function renderFixed() {
+  if (!me || !myDoc) return;
+  const fam = scope === 'family';
+  const uids = scopeUids();
+  const items = uids.flatMap(u => userData(u).fixedCosts.map(f => ({ ...f, _uid:u })));
+  const income = uids.reduce((s,u)=>s+(userData(u).income||0),0);
+  const fixedTotal = items.reduce((s,f)=>s+f.amount,0);
+  const varSpent = viewEntries(currentMonth()).reduce((s,e)=>s+e.amount,0);
+  const free = income - fixedTotal;
+  const remain = free - varSpent;
+
+  $('incomeLabel').textContent = fam ? '💰 家族の月収合計' : '💰 月収（手取り）';
+  $('incomeInput').style.display = fam ? 'none' : '';
+  $('incomeFamily').style.display = fam ? '' : 'none';
+  $('incomeFamily').textContent = fmt(income);
+  if (document.activeElement !== $('incomeInput')) $('incomeInput').value = D().income || '';
+  $('flowFixed').textContent = '−'+fmt(fixedTotal);
+  $('flowFree').textContent = signed(free);
+  $('flowVar').textContent = '−'+fmt(varSpent);
+  const remainEl = $('flowRemain');
+  remainEl.textContent = signed(remain);
+  const remainPct = free > 0 ? (varSpent/free)*100 : 100;
+  remainEl.className = 'flow-hero-val ' + (remain<0?'over':remainPct>=80?'warn':'ok');
+  $('fcTotalLabel').textContent = fmt(fixedTotal);
+  $('fcEditHint').textContent = fam ? '自分の項目のみタップで編集できます' : '項目をタップで編集';
+
+  const list = $('fcList');
+  if (items.length === 0) { list.innerHTML = '<div class="empty-state">固定費が登録されていません</div>'; return; }
+  list.innerHTML = [...items].sort((a,b)=>b.amount-a.amount).map(f => {
+    const c = getFixedCat(f.cat);
+    const months = monthsSince(f.startYm);
+    const cumLabel = months === 0 ? `開始前（${ymLabel(f.startYm)}〜）`
+      : `${ymLabel(f.startYm)}〜 ${months}ヶ月 · 累計 <b>${fmt(months * f.amount)}</b>`;
+    const mine = f._uid === me.uid;
+    const badge = fam ? `<span class="member-badge" style="color:${memberColor(f._uid)};">${esc(memberName(f._uid))}</span>` : '';
+    return `<div class="history-item${mine?'':' readonly'}" style="background:rgba(136,136,136,0.06);border-color:var(--border);" ${mine?`onclick="openFcEditModal(${Number(f.id)})"`:''}>
+      <div class="history-left">
+        <div class="history-cat" style="color:${c.color};">${badge}<span>${c.emoji} ${c.label}</span></div>
+        <div class="history-memo">${esc(f.name)}</div>
+        <div class="fc-cum">${cumLabel}</div>
+      </div>
+      <div class="history-right">
+        <div class="history-amount">${fmt(f.amount)}<span style="font-size:11px;color:var(--text3);">/月</span></div>
+        ${mine?'<span style="color:var(--text3);font-size:13px;margin-left:8px;">›</span>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  クイック入力
+// ═══════════════════════════════════════════════
+function renderQuickTags() {
+  const el = $('quickTags');
+  if (!el) return;
+  const memo = $('memoInput').value;
+  const qt = D().quickTags;
+  const row = (key, label) => qt[key].length ? `<div class="quick-tag-row"><span class="quick-tag-label">${label}</span>${
+    qt[key].map((t,i) => `<button class="quick-tag-btn${memo.includes(t)?' active':''}" onclick="toggleQuickTag('${key}',${i})">${esc(t)}</button>`).join('')
+  }</div>` : '';
+  el.innerHTML = row('stores','店舗') + row('items','内容');
+}
+function toggleQuickTag(key, i) {
+  const tag = D().quickTags[key][i];
+  if (!tag) return;
+  const input = $('memoInput');
+  let memo = input.value;
+  if (memo.includes(tag)) memo = memo.replace(tag, '').replace(/\s{2,}/g,' ').trim();
+  else { memo = (memo ? memo + ' ' : '') + tag; if (memo.length > 40) return; }
+  input.value = memo;
+  renderQuickTags();
+}
+
+// ═══════════════════════════════════════════════
+//  設定
+// ═══════════════════════════════════════════════
+function setTheme(t) {
+  pendingTheme = t;
+  ['light','dark','system'].forEach(x => {
+    $('theme'+x.charAt(0).toUpperCase()+x.slice(1)).className = 'theme-opt'+(x===t?' active':'');
+  });
+  applyTheme(t);
+  saveUser({ theme:t });
+}
+function openModal() {
+  const d = D();
+  $('settingName').value = d.displayName || '';
+  $('settingEmail').textContent = `ログイン中：${me.email}`;
+  $('settingLimit').value = d.limit;
+  pendingTheme = d.theme || 'system';
+  ['light','dark','system'].forEach(x => {
+    $('theme'+x.charAt(0).toUpperCase()+x.slice(1)).className = 'theme-opt'+(x===pendingTheme?' active':'');
+  });
+  renderKwSections(); renderQtSections(); renderFamilySection();
+  $('legacySettingBtn').style.display = readLegacy() ? '' : 'none';
+  $('modalOverlay').classList.add('open');
+}
+function closeModal(e) { if (e.target === $('modalOverlay')) $('modalOverlay').classList.remove('open'); }
+function saveSettings() {
+  const patch = {};
+  const limit = parseInt($('settingLimit').value);
+  if (limit > 0) patch.limit = limit;
+  const name = $('settingName').value.trim();
+  if (name) patch.displayName = name;
+  saveUser(patch);
+  toast('保存しました');
+}
+
+const QT_DEFS = [ { key:'stores', label:'🏪 店舗' }, { key:'items', label:'🛍️ 内容' } ];
+function renderQtSections() {
+  const qt = D().quickTags;
+  $('qtSections').innerHTML = QT_DEFS.map(q => `<div class="kw-section">
+      <div class="kw-header"><div class="kw-label">${q.label}</div></div>
+      <div class="kw-list">${qt[q.key].map((t,i)=>`<div class="kw-tag">${esc(t)}<button class="kw-remove" onclick="removeQt('${q.key}',${i})">×</button></div>`).join('')}</div>
+      <div class="kw-add-row">
+        <input type="text" class="kw-add-input" id="qtInput_${q.key}" placeholder="追加（例：${q.key==='stores'?'セブン':'外食'}）" maxlength="12">
+        <button class="kw-add-btn" onclick="addQt('${q.key}')">追加</button>
+      </div>
+    </div>`).join('');
+}
+function addQt(key) {
+  const input = $(`qtInput_${key}`);
+  const val = input.value.trim();
+  if (!val) return;
+  const qt = { stores:[...D().quickTags.stores], items:[...D().quickTags.items] };
+  if (!qt[key].includes(val)) qt[key].push(val);
+  myDoc.quickTags = qt;               // 即時反映
+  saveUser({ quickTags:qt });
+  input.value = '';
+  renderQtSections(); renderQuickTags();
+}
+function removeQt(key, i) {
+  const qt = { stores:[...D().quickTags.stores], items:[...D().quickTags.items] };
+  qt[key].splice(i, 1);
+  myDoc.quickTags = qt;
+  saveUser({ quickTags:qt });
+  renderQtSections(); renderQuickTags();
+}
+
+function renderKwSections() {
+  const d = D();
+  $('kwSections').innerHTML = CAT_DEFS.filter(c=>c.key!=='other').map(c => {
+    const kws = getKeywords(d, c.key);
     return `<div class="kw-section">
       <div class="kw-header"><div class="kw-dot" style="background:${c.color}"></div><div class="kw-label">${c.emoji} ${c.label}</div></div>
-      <div class="kw-list" id="kwList_${c.key}">
-        ${kws.map(k=>`<div class="kw-tag">${k}<button class="kw-remove" onclick="removeKw('${c.key}','${k}')">×</button></div>`).join('')}
-      </div>
+      <div class="kw-list">${kws.map((k,i)=>`<div class="kw-tag">${esc(k)}<button class="kw-remove" onclick="removeKw('${c.key}',${i})">×</button></div>`).join('')}</div>
       <div class="kw-add-row">
         <input type="text" class="kw-add-input" id="kwInput_${c.key}" placeholder="キーワードを追加" maxlength="20">
         <button class="kw-add-btn" onclick="addKw('${c.key}')">追加</button>
@@ -904,385 +1377,289 @@ function renderKwSections(data) {
   }).join('');
 }
 function addKw(catKey) {
-  const input = document.getElementById(`kwInput_${catKey}`);
+  const input = $(`kwInput_${catKey}`);
   const val = input.value.trim();
   if (!val) return;
-  const data = load();
-  if (!data.customKeywords[catKey]) data.customKeywords[catKey] = [...DEFAULT_KEYWORDS[catKey]];
-  if (!data.customKeywords[catKey].includes(val)) data.customKeywords[catKey].push(val);
-  save(data);
+  const arr = [...getKeywords(D(), catKey)];
+  if (!arr.includes(val)) arr.push(val);
+  myDoc.customKeywords = { ...myDoc.customKeywords, [catKey]:arr };
+  saveUser({ customKeywords:{ [catKey]:arr } });
   input.value = '';
-  renderKwSections(data);
+  renderKwSections(); render();
 }
-function removeKw(catKey, kw) {
-  const data = load();
-  if (!data.customKeywords[catKey]) data.customKeywords[catKey] = [...DEFAULT_KEYWORDS[catKey]];
-  data.customKeywords[catKey] = data.customKeywords[catKey].filter(k => k !== kw);
-  save(data);
-  renderKwSections(data);
-}
-
-// ═══════════ 固定費タブ ═══════════
-let activeTab = 'expense';
-let selectedFcCat = 'fother';
-let fcEditingId = null;
-let fcEditingCat = 'fother';
-
-function switchTab(tab) {
-  activeTab = tab;
-  document.getElementById('tabExpense').style.display = tab==='expense' ? '' : 'none';
-  document.getElementById('tabFixed').style.display   = tab==='fixed'   ? '' : 'none';
-  document.getElementById('tabBtnExpense').className = 'tab-btn'+(tab==='expense'?' active':'');
-  document.getElementById('tabBtnFixed').className   = 'tab-btn'+(tab==='fixed'?' active':'');
-  if (tab==='fixed') renderFixed();
+function removeKw(catKey, i) {
+  const arr = [...getKeywords(D(), catKey)];
+  arr.splice(i, 1);
+  myDoc.customKeywords = { ...myDoc.customKeywords, [catKey]:arr };
+  saveUser({ customKeywords:{ [catKey]:arr } });
+  renderKwSections(); render();
 }
 
-// 開始月からの経過月数（開始月を含む。未来開始は0）
-function monthsSince(startYm) {
-  if (!startYm) return 1;
-  const [y,m] = startYm.split('-').map(Number);
-  const now = new Date();
-  const diff = (now.getFullYear()-y)*12 + (now.getMonth()+1-m) + 1;
-  return Math.max(diff, 0);
-}
-function ymLabel(ym) {
-  if (!ym) return '—';
-  const [y,m] = ym.split('-');
-  return `${y}/${parseInt(m)}`;
-}
-
-function renderFcCats() {
-  document.getElementById('fcCats').innerHTML = FIXED_CATS.map(c =>
-    `<button class="memo-cat-btn${selectedFcCat===c.key?' active':''}" onclick="setFcCat('${c.key}')">${c.emoji} ${c.label}</button>`
-  ).join('');
-}
-function setFcCat(key) { selectedFcCat = key; renderFcCats(); }
-function renderFcEditCats() {
-  document.getElementById('fcEditCats').innerHTML = FIXED_CATS.map(c =>
-    `<button class="memo-cat-btn${fcEditingCat===c.key?' active':''}" onclick="setFcEditCat('${c.key}')">${c.emoji} ${c.label}</button>`
-  ).join('');
-}
-function setFcEditCat(key) { fcEditingCat = key; renderFcEditCats(); }
-
-function addFixedCost() {
-  const name = document.getElementById('fcName').value.trim();
-  const amount = parseInt(document.getElementById('fcAmount').value);
-  const start = document.getElementById('fcStart').value; // "YYYY-MM"
-  if (!name) { document.getElementById('fcName').focus(); return; }
-  if (!amount || amount <= 0) { document.getElementById('fcAmount').focus(); return; }
-  const data = load();
-  data.fixedCosts.push({ id:Date.now(), name, amount, startYm:start||currentMonth(), cat:selectedFcCat });
-  save(data);
-  document.getElementById('fcName').value = '';
-  document.getElementById('fcAmount').value = '';
-  document.getElementById('fcStart').value = '';
-  selectedFcCat = 'fother';
-  renderFcCats();
-  renderFixed();
-}
-
-function saveIncome() {
-  const val = parseInt(document.getElementById('incomeInput').value);
-  const data = load();
-  data.income = (val && val > 0) ? val : 0;
-  save(data);
-  renderFixed();
-}
-
-function openFcEditModal(id) {
-  const data = load();
-  const item = data.fixedCosts.find(f => f.id === id);
-  if (!item) return;
-  fcEditingId = id;
-  document.getElementById('fcEditName').value = item.name;
-  document.getElementById('fcEditAmount').value = item.amount;
-  document.getElementById('fcEditStart').value = item.startYm || '';
-  fcEditingCat = item.cat || 'fother';
-  renderFcEditCats();
-  document.getElementById('fcEditOverlay').classList.add('open');
-}
-function closeFcEditModal(e) {
-  if (e.target === document.getElementById('fcEditOverlay'))
-    document.getElementById('fcEditOverlay').classList.remove('open');
-}
-function saveFcEdit() {
-  const name = document.getElementById('fcEditName').value.trim();
-  const amount = parseInt(document.getElementById('fcEditAmount').value);
-  if (!name || !amount || amount <= 0) return;
-  const data = load();
-  const item = data.fixedCosts.find(f => f.id === fcEditingId);
-  if (item) {
-    item.name = name; item.amount = amount;
-    item.startYm = document.getElementById('fcEditStart').value || item.startYm;
-    item.cat = fcEditingCat;
-  }
-  save(data);
-  document.getElementById('fcEditOverlay').classList.remove('open');
-  renderFixed();
-}
-function deleteFcFromEdit() {
-  if (!confirm('この固定費を削除しますか？')) return;
-  const data = load();
-  data.fixedCosts = data.fixedCosts.filter(f => f.id !== fcEditingId);
-  save(data);
-  document.getElementById('fcEditOverlay').classList.remove('open');
-  renderFixed();
-}
-
-function renderFixed() {
-  const data = load();
-  const fixedTotal = data.fixedCosts.reduce((s,f)=>s+f.amount,0);
-  const varSpent = getEntries(data, currentMonth()).reduce((s,e)=>s+e.amount,0);
-  const free = data.income - fixedTotal;
-  const remain = free - varSpent;
-
-  document.getElementById('incomeInput').value = data.income || '';
-  document.getElementById('flowFixed').textContent = '−'+fmt(fixedTotal);
-  document.getElementById('flowFree').textContent = (free<0?'−':'')+fmt(free);
-  document.getElementById('flowVar').textContent = '−'+fmt(varSpent);
-  const remainEl = document.getElementById('flowRemain');
-  remainEl.textContent = (remain<0?'−':'')+fmt(remain);
-  const remainPct = free > 0 ? (varSpent/free)*100 : 100;
-  remainEl.className = 'flow-hero-val ' + (remain<0?'over':remainPct>=80?'warn':'ok');
-
-  document.getElementById('fcTotalLabel').textContent = fmt(fixedTotal);
-
-  const list = document.getElementById('fcList');
-  if (data.fixedCosts.length === 0) {
-    list.innerHTML = '<div class="empty-state">固定費が登録されていません</div>';
+// ═══════════════════════════════════════════════
+//  家族グループ
+// ═══════════════════════════════════════════════
+function renderFamilySection() {
+  const el = $('familySection');
+  if (!household) {
+    el.innerHTML = `
+      <div class="backup-note">家族グループを作ると招待コードが発行されます。家族はそのコードで参加すると、お互いの支出・固定費を合算して見られます（編集できるのは自分の分だけ）。</div>
+      <button class="modal-sub-btn" onclick="createHousehold()">＋ 家族グループを作成</button>
+      <div class="kw-add-row" style="margin-top:4px;">
+        <input type="text" class="kw-add-input" id="joinCode" placeholder="招待コード（8桁）" maxlength="9" autocapitalize="characters" style="font-family:var(--mono);letter-spacing:0.1em;">
+        <button class="kw-add-btn" onclick="joinHousehold()">参加</button>
+      </div>`;
     return;
   }
-  // 月額の大きい順に表示
-  const sorted = [...data.fixedCosts].sort((a,b)=>b.amount-a.amount);
-  list.innerHTML = sorted.map(f => {
-    const c = getFixedCat(f.cat);
-    const months = monthsSince(f.startYm);
-    const cum = months * f.amount;
-    const cumLabel = months === 0
-      ? `開始前（${ymLabel(f.startYm)}〜）`
-      : `${ymLabel(f.startYm)}〜 ${months}ヶ月 · 累計 <b>${fmt(cum)}</b>`;
-    return `<div class="history-item" style="background:rgba(136,136,136,0.06);border-color:var(--border);" onclick="openFcEditModal(${f.id})">
-      <div class="history-left">
-        <div class="history-cat" style="color:${c.color};">${c.emoji} ${c.label}</div>
-        <div class="history-memo">${f.name}</div>
-        <div class="fc-cum">${cumLabel}</div>
-      </div>
-      <div class="history-right">
-        <div class="history-amount">${fmt(f.amount)}<span style="font-size:11px;color:var(--text3);">/月</span></div>
-        <span style="color:var(--text3);font-size:13px;margin-left:8px;">›</span>
-      </div>
-    </div>`;
-  }).join('');
+  const members = household.members || [];
+  el.innerHTML = `
+    <div class="backup-note">招待コード（家族に伝えてください）</div>
+    <div class="code-box"><span class="code-text">${esc(household.id)}</span><button class="code-copy" onclick="shareCode()">共有</button></div>
+    <div class="backup-note">メンバー（${members.length}人）</div>
+    <div class="member-list">${members.map(u => `<div class="member-row"><span class="member-dot" style="background:${memberColor(u)}"></span>${esc(memberName(u))}${u===me.uid?'（自分）':''}</div>`).join('')}</div>
+    ${members.length < 2 ? '<div class="backup-note">まだ自分だけです。家族のスマホでアカウント登録 → 設定 → 招待コードで参加してもらってください。</div>' : ''}
+    <button class="modal-delete" style="margin-top:0;" onclick="leaveHousehold()">この家族グループから抜ける</button>`;
 }
-
-// ── 固定費の共有（URLハッシュ方式）──
-function encodePayload(obj) {
-  return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(obj)))));
+function genCode() {
+  const a = new Uint32Array(8); crypto.getRandomValues(a);
+  return Array.from(a, n => CODE_CHARS[n % CODE_CHARS.length]).join('');
 }
-function decodePayload(str) {
-  return JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(str)))));
-}
-function shareFixed() {
-  const data = load();
-  if (data.fixedCosts.length === 0) { alert('固定費が登録されていません'); return; }
-  const payload = {
-    v: 1,
-    inc: data.income || 0,
-    f: data.fixedCosts.map(x => ({ i:x.id, n:x.name, a:x.amount, s:x.startYm, c:x.cat })),
-  };
-  const url = location.origin + location.pathname + '#fc=' + encodePayload(payload);
-  if (navigator.share) {
-    navigator.share({ title:'固定費リスト', url }).catch(()=>{});
-  } else {
-    navigator.clipboard.writeText(url).then(()=>alert('共有URLをコピーしました。LINE等に貼り付けて送ってください。'));
-  }
-}
-function checkImport() {
-  const m = location.hash.match(/#fc=(.+)/);
-  if (!m) return;
+async function createHousehold() {
+  if (household) return;
   try {
-    const payload = decodePayload(m[1]);
-    if (!payload || !Array.isArray(payload.f)) throw new Error('invalid');
-    const total = payload.f.reduce((s,x)=>s+(x.a||0),0);
-    const ok = confirm(`固定費リストを受け取りました（${payload.f.length}件・合計 ${fmt(total)}/月）。\n\n現在の固定費リストを上書きしますか？\n※ 支出の記録には影響しません`);
-    if (ok) {
-      const data = load();
-      data.fixedCosts = payload.f.map(x => ({ id:x.i||Date.now()+Math.random(), name:String(x.n||''), amount:parseInt(x.a)||0, startYm:x.s||currentMonth(), cat:x.c||'fother' }));
-      if (typeof payload.inc === 'number' && payload.inc > 0) data.income = payload.inc;
-      save(data);
-      switchTab('fixed');
-      alert('取り込みました');
+    let code;
+    for (let i=0; i<5; i++) { code = genCode(); if (!(await getDoc(doc(db,'households',code))).exists()) break; }
+    const b = writeBatch(db);
+    b.set(doc(db,'households',code), { name:`${memberName(me.uid)}の家族`, ownerUid:me.uid, members:[me.uid], createdAt:Date.now() });
+    b.set(userRef(), { householdId:code }, { merge:true });
+    await b.commit();
+    toast('家族グループを作成しました');
+  } catch(e) { console.error(e); toast(`作成に失敗しました（${e.code||e.message}）`, 4000); }
+}
+async function joinHousehold() {
+  const code = ($('joinCode').value || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if (code.length !== 8) { toast('招待コードは8桁です'); return; }
+  if (household) { toast('先に今の家族グループから抜けてください'); return; }
+  try {
+    const ref = doc(db,'households',code);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) { toast('招待コードが見つかりません'); return; }
+    if ((snap.data().members||[]).length >= 10) { toast('この家族グループは満員です'); return; }
+    const b = writeBatch(db);
+    b.update(ref, { members:arrayUnion(me.uid) });
+    b.set(userRef(), { householdId:code }, { merge:true });
+    await b.commit();
+    toast('家族グループに参加しました');
+  } catch(e) { console.error(e); toast(`参加に失敗しました（${e.code||e.message}）`, 4000); }
+}
+async function leaveHousehold() {
+  if (!household) return;
+  const last = household.members.length <= 1;
+  if (!confirm(last ? '家族グループを削除しますか？' : '家族グループから抜けますか？\n（自分のデータは残ります。家族からは見えなくなります）')) return;
+  try {
+    const ref = doc(db,'households',household.id);
+    const b = writeBatch(db);
+    if (last) b.delete(ref); else b.update(ref, { members:arrayRemove(me.uid) });
+    b.set(userRef(), { householdId:null }, { merge:true });
+    await b.commit();
+    scope = 'me';
+    toast(last ? '家族グループを削除しました' : '家族グループから抜けました');
+  } catch(e) { console.error(e); toast(`失敗しました（${e.code||e.message}）`, 4000); }
+}
+function shareCode() {
+  const url = location.origin + location.pathname;
+  const text = `家計簿アプリ「残り枠」の家族グループに招待します。\n① ${url} を開いてアカウント登録\n② 設定（⚙）→ 家族で共有 → 招待コード「${household.id}」で参加`;
+  if (navigator.share) navigator.share({ title:'残り枠 家族招待', text }).catch(()=>{});
+  else navigator.clipboard.writeText(text).then(()=>toast('招待文をコピーしました'));
+}
+
+// ═══════════════════════════════════════════════
+//  旧データ（v2・localStorage）からの移行
+//  ※ 読み取りのみ。旧データは削除しません
+// ═══════════════════════════════════════════════
+function legacyMigrate(data) {
+  data = data || {};
+  if (!data.months) data.months = {};
+  if (data.entries && data.entries.length > 0) {
+    const m = data.month || currentMonth();
+    data.months[m] = [...data.entries, ...(data.months[m]||[])];
+  }
+  return data;
+}
+function legacyCount(d) { return Object.values(d.months||{}).reduce((s,a)=>s+(a?a.length:0),0); }
+function readLegacy() {
+  try {
+    const cands = [];
+    const main = localStorage.getItem('kakeibo_v1');
+    if (main) cands.push(legacyMigrate(JSON.parse(main)));
+    for (const s of ['0','1','2']) {
+      const b = JSON.parse(localStorage.getItem('kakeibo_bak_'+s) || 'null');
+      if (b && b.data) cands.push(legacyMigrate(b.data));
     }
-  } catch(e) {
-    alert('共有データの読み込みに失敗しました。URLが途中で切れていないか確認してください。');
-  }
-  history.replaceState(null, '', location.pathname + location.search);
+    const best = cands.filter(d => legacyCount(d) > 0 || (d.fixedCosts||[]).length > 0)
+      .sort((a,b) => legacyCount(b) - legacyCount(a))[0];
+    return best || null;
+  } catch(e) { return null; }
+}
+function renderLegacyBanner() {
+  const d = readLegacy();
+  const show = !!d && !myDoc.legacyImportedAt && !legacyBannerHidden;
+  $('legacyBanner').classList.toggle('show', show);
+  if (show) $('legacyBannerText').textContent = `📲 この端末に旧バージョンのデータ（記録${legacyCount(d)}件・固定費${(d.fixedCosts||[]).length}件）があります。`;
+}
+function hideLegacyBanner() { legacyBannerHidden = true; renderLegacyBanner(); }
+
+async function importLegacyFromDevice() {
+  const d = readLegacy();
+  if (!d) { toast('この端末に旧データは見つかりませんでした'); return; }
+  if (!confirm(`この端末の旧データ（記録${legacyCount(d)}件・固定費${(d.fixedCosts||[]).length}件）をアカウントに取り込みます。\n設定・固定費・月収は旧データの内容で置き換わります。よろしいですか？`)) return;
+  await importDataToCloud(d);
 }
 
-// ═══════════ クイック入力 ═══════════
-function renderQuickTags() {
-  const el = document.getElementById('quickTags');
-  if (!el) return;
-  const data = load();
-  const memo = document.getElementById('memoInput').value;
-  const row = (label, tags) => tags.length ? `<div class="quick-tag-row"><span class="quick-tag-label">${label}</span>${
-    tags.map(t => `<button class="quick-tag-btn${memo.includes(t)?' active':''}" onclick="toggleQuickTag('${t.replace(/'/g,"\\'")}')">${t}</button>`).join('')
-  }</div>` : '';
-  el.innerHTML = row('店舗', data.quickTags.stores) + row('内容', data.quickTags.items);
-}
-function toggleQuickTag(tag) {
-  const input = document.getElementById('memoInput');
-  let memo = input.value;
-  if (memo.includes(tag)) {
-    memo = memo.replace(tag, '').replace(/\s{2,}/g,' ').trim();
-  } else {
-    memo = (memo ? memo + ' ' : '') + tag;
-    if (memo.length > 40) return; // maxlength超過は無視
-  }
-  input.value = memo;
-  renderQuickTags();
-}
-
-// 設定モーダル内のクイックタグ管理
-const QT_DEFS = [ { key:'stores', label:'🏪 店舗' }, { key:'items', label:'🛍️ 内容' } ];
-function renderQtSections(data) {
-  const wrap = document.getElementById('qtSections');
-  wrap.innerHTML = QT_DEFS.map(q => {
-    const tags = data.quickTags[q.key];
-    return `<div class="kw-section">
-      <div class="kw-header"><div class="kw-label">${q.label}</div></div>
-      <div class="kw-list">
-        ${tags.map(t=>`<div class="kw-tag">${t}<button class="kw-remove" onclick="removeQt('${q.key}','${t.replace(/'/g,"\\'")}')">×</button></div>`).join('')}
-      </div>
-      <div class="kw-add-row">
-        <input type="text" class="kw-add-input" id="qtInput_${q.key}" placeholder="追加（例：${q.key==='stores'?'セブン':'外食'}）" maxlength="12">
-        <button class="kw-add-btn" onclick="addQt('${q.key}')">追加</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-function addQt(key) {
-  const input = document.getElementById(`qtInput_${key}`);
-  const val = input.value.trim();
-  if (!val) return;
-  const data = load();
-  if (!data.quickTags[key].includes(val)) data.quickTags[key].push(val);
-  save(data);
-  input.value = '';
-  renderQtSections(data);
-  renderQuickTags();
-}
-function removeQt(key, tag) {
-  const data = load();
-  data.quickTags[key] = data.quickTags[key].filter(t => t !== tag);
-  save(data);
-  renderQtSections(data);
-  renderQuickTags();
-}
-
-// ═══════════ 書き出し / 読み込み ═══════════
-const EXPORT_KEY = 'kakeibo_lastexport';
-function exportData() {
-  const data = load();
-  const json = JSON.stringify({ app:'kakeibo', ver:CURRENT_VERSION, exported:new Date().toISOString(), data });
-  const done = () => {
-    localStorage.setItem(EXPORT_KEY, String(Date.now()));
-    updateBackupBanner(); updateBackupStatus();
-  };
-  if (navigator.share) {
-    navigator.share({ title:`残り枠バックアップ ${today()}`, text: json }).then(done).catch(()=>{
-      navigator.clipboard.writeText(json).then(()=>{ alert('クリップボードにコピーしました。LINE Keepメモ等に貼り付けて保存してください。'); done(); });
+async function importDataToCloud(d) {
+  $('loadingText').textContent = 'クラウドに取り込んでいます…';
+  showGate('loading');
+  try {
+    // 支出：旧IDをそのままドキュメントIDに使う → 何度取り込んでも重複しない
+    const ops = [];
+    Object.entries(d.months || {}).forEach(([m, arr]) => {
+      if (!/^\d{4}-\d{2}$/.test(m)) return;
+      (arr||[]).forEach(e => {
+        const amount = parseInt(e.amount);
+        if (!amount || amount <= 0) return;
+        const ts = Number(e.id) || Date.now();
+        ops.push([`legacy_${String(e.id||ts).replace(/[^\w.-]/g,'_')}`, {
+          amount, memo:String(e.memo||'').slice(0,60), catOverride:e.catOverride||'auto', category:e.category||'private',
+          month:m, ts, date:String(e.date||'—'), time:String(e.time||''),
+        }]);
+      });
     });
-  } else {
-    navigator.clipboard.writeText(json).then(()=>{ alert('クリップボードにコピーしました。LINE Keepメモ等に貼り付けて保存してください。'); done(); });
+    for (let i=0; i<ops.length; i+=400) {
+      const b = writeBatch(db);
+      ops.slice(i,i+400).forEach(([id, data]) => b.set(doc(expensesCol(), id), data));
+      await b.commit();
+    }
+    // 設定類
+    const patch = { legacyImportedAt:Date.now() };
+    if (typeof d.limit === 'number' && d.limit > 0) patch.limit = d.limit;
+    if (d.theme) patch.theme = d.theme;
+    if (d.customKeywords && typeof d.customKeywords === 'object') patch.customKeywords = d.customKeywords;
+    if (Array.isArray(d.fixedCosts)) patch.fixedCosts = d.fixedCosts.map(f => ({
+      id:Number(f.id)||Date.now()+Math.floor(Math.random()*1000), name:String(f.name||''), amount:parseInt(f.amount)||0,
+      startYm:f.startYm||currentMonth(), cat:f.cat||'fother' }));
+    if (typeof d.income === 'number') patch.income = d.income;
+    if (d.quickTags && Array.isArray(d.quickTags.stores) && Array.isArray(d.quickTags.items)) patch.quickTags = d.quickTags;
+    // 置き換え対象のマップ項目は merge だと古いキーが残るため、customKeywords は丸ごと上書き
+    await setDoc(userRef(), patch, { mergeFields:Object.keys(patch) });
+    showGate(null);
+    $('modalOverlay').classList.remove('open');
+    toast(`取り込みました（記録${ops.length}件）`, 4000);
+  } catch(e) {
+    console.error(e);
+    showGate(null);
+    toast(`取り込みに失敗しました（${e.code||e.message}）`, 5000);
   }
+}
+
+// 書き出し（v2と同じ形式なので、どちらでも読み込める）
+async function exportData() {
+  try {
+    const snap = await getDocs(expensesCol());
+    const months = {};
+    snap.docs.map(x => ({ id:x.id, ...x.data() })).sort((a,b)=>(b.ts||0)-(a.ts||0)).forEach(e => {
+      (months[e.month] = months[e.month] || []).push({ id:e.ts, amount:e.amount, category:e.category||'private',
+        memo:e.memo||'', catOverride:e.catOverride||'auto', date:e.date, time:e.time });
+    });
+    const d = D();
+    const json = JSON.stringify({ app:'kakeibo', ver:CURRENT_VERSION, exported:new Date().toISOString(),
+      data:{ limit:d.limit, months, theme:d.theme, customKeywords:d.customKeywords, fixedCosts:d.fixedCosts, income:d.income, quickTags:d.quickTags } });
+    if (navigator.share) {
+      navigator.share({ title:`残り枠バックアップ ${today()}`, text:json }).catch(()=>{
+        navigator.clipboard.writeText(json).then(()=>toast('クリップボードにコピーしました'));
+      });
+    } else {
+      navigator.clipboard.writeText(json).then(()=>toast('クリップボードにコピーしました'));
+    }
+  } catch(e) { toast(`書き出しに失敗しました（${e.code||e.message}）`, 4000); }
 }
 function openImportModal() {
-  document.getElementById('modalOverlay').classList.remove('open');
-  document.getElementById('importText').value = '';
-  document.getElementById('importOverlay').classList.add('open');
+  $('modalOverlay').classList.remove('open');
+  $('importText').value = '';
+  $('importOverlay').classList.add('open');
 }
-function closeImportModal(e) {
-  if (e.target === document.getElementById('importOverlay'))
-    document.getElementById('importOverlay').classList.remove('open');
-}
+function closeImportModal(e) { if (e.target === $('importOverlay')) $('importOverlay').classList.remove('open'); }
 function importFromFile(ev) {
   const file = ev.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => { document.getElementById('importText').value = reader.result; importFromText(); };
+  reader.onload = () => { $('importText').value = reader.result; importFromText(); };
   reader.readAsText(file);
 }
-function importFromText() {
-  const raw = document.getElementById('importText').value.trim();
-  if (!raw) { alert('データが入力されていません'); return; }
+async function importFromText() {
+  const raw = $('importText').value.trim();
+  if (!raw) { toast('データが入力されていません'); return; }
+  let d, parsed;
   try {
-    const parsed = JSON.parse(raw);
-    const data = migrate(parsed.data && parsed.app === 'kakeibo' ? parsed.data : parsed);
-    if (isEmptyData(data) && !confirm('読み込むデータに記録がありません。それでも続けますか？')) return;
-    const n = Object.values(data.months||{}).reduce((s,a)=>s+a.length,0);
-    const when = parsed.exported ? `（${parsed.exported.slice(0,10)} 書き出し）` : '';
-    if (!confirm(`記録${n}件・固定費${(data.fixedCosts||[]).length}件のデータ${when}で\n現在のデータを置き換えます。よろしいですか？`)) return;
-    save(data);
-    alert('読み込みました');
-    location.reload();
+    parsed = JSON.parse(raw);
+    d = legacyMigrate(parsed.data && parsed.app === 'kakeibo' ? parsed.data : parsed);
   } catch(e) {
-    alert('読み込みに失敗しました。JSONの形式を確認してください（途中で切れていることが多いです）。');
+    toast('読み込みに失敗しました。JSONが途中で切れていないか確認してください', 5000); return;
   }
-}
-function updateBackupBanner() {
-  const banner = document.getElementById('backupBanner');
-  const last = parseInt(localStorage.getItem(EXPORT_KEY) || '0');
-  const data = load();
-  const days = last ? Math.floor((Date.now()-last)/86400000) : Infinity;
-  if (!isEmptyData(data) && days >= 7) {
-    document.getElementById('backupBannerText').textContent =
-      last ? `⚠️ 最終バックアップから${days}日経過` : '⚠️ バックアップ未実施です';
-    banner.classList.add('show');
-  } else {
-    banner.classList.remove('show');
-  }
-}
-function updateBackupStatus() {
-  const el = document.getElementById('backupStatus');
-  if (!el) return;
-  const last = parseInt(localStorage.getItem(EXPORT_KEY) || '0');
-  const b0 = JSON.parse(localStorage.getItem(BAK_PREFIX+'0') || 'null');
-  el.innerHTML = `最終書き出し: ${last ? new Date(last).toLocaleDateString('ja-JP') : 'なし'} ／ 端末内自動バックアップ: ${b0 ? b0.d : 'なし'}`;
-}
-// ブラウザに保存維持を要求（対応環境のみ）
-function requestPersist() {
-  if (navigator.storage && navigator.storage.persist) {
-    navigator.storage.persist().catch(()=>{});
-  }
+  const when = parsed.exported ? `（${parsed.exported.slice(0,10)} 書き出し）` : '';
+  if (!confirm(`記録${legacyCount(d)}件・固定費${(d.fixedCosts||[]).length}件のデータ${when}を取り込みます。\n設定・固定費・月収はこの内容で置き換わります。よろしいですか？`)) return;
+  $('importOverlay').classList.remove('open');
+  await importDataToCloud(d);
 }
 
-const RELEASE_KEY = 'kakeibo_release';
-const CURRENT_VERSION = 'v2.2.1';
-
+// ═══════════════════════════════════════════════
+//  リリースノート
+// ═══════════════════════════════════════════════
 function checkRelease() {
-  const seen = localStorage.getItem(RELEASE_KEY);
-  if (seen !== CURRENT_VERSION) {
-    document.getElementById('releaseOverlay').classList.add('open');
+  if (D().seenRelease !== CURRENT_VERSION) {
+    $('releaseTitle').textContent = `${CURRENT_VERSION} 更新内容`;
+    $('releaseOverlay').classList.add('open');
   }
 }
 function closeRelease() {
-  localStorage.setItem(RELEASE_KEY, CURRENT_VERSION);
-  document.getElementById('releaseOverlay').classList.remove('open');
+  $('releaseOverlay').classList.remove('open');
+  saveUser({ seenRelease:CURRENT_VERSION });
 }
 
-checkRestore();
-requestPersist();
-const initData = load();
-applyTheme(initData.theme || 'system');
+// ═══════════════════════════════════════════════
+//  HTMLの onclick から呼ぶ関数を公開
+// ═══════════════════════════════════════════════
+Object.assign(window, {
+  setAuthMode, submitAuth, resetPassword, logout,
+  switchTab, setScope, addExpense, changeMonth, toggleBreakdown, confirmClearMonth, shareLog,
+  setMemoCat, setEditMemoCat, openEditModal, closeEditModal, saveEdit, deleteFromEdit,
+  setFcCat, setFcEditCat, addFixedCost, saveIncome, openFcEditModal, closeFcEditModal, saveFcEdit, deleteFcFromEdit,
+  renderQuickTags, toggleQuickTag,
+  openModal, closeModal, saveSettings, setTheme, addQt, removeQt, addKw, removeKw,
+  createHousehold, joinHousehold, leaveHousehold, shareCode,
+  importLegacyFromDevice, hideLegacyBanner, exportData, openImportModal, closeImportModal, importFromFile, importFromText,
+  closeRelease,
+});
+
+// 月が変わったとき（日付をまたいで開きっぱなし）に追従
+setInterval(() => { if (me && myDoc) { syncEntrySubs(); render(); } }, 60000);
+
+// ═══════════════════════════════════════════════
+//  起動
+// ═══════════════════════════════════════════════
+applyTheme('system');
 renderMemoCats();
 renderFcCats();
-renderQuickTags();
-render();
-renderFixed();
-updateBackupBanner();
-checkImport();
-checkRelease();
+if (!CONFIGURED) {
+  showGate('auth');
+  $('authForm').style.display = 'none';
+  $('resetLink').style.display = 'none';
+  $('authNote').innerHTML = '⚠️ Firebaseの設定が未入力です。<br>kakeibo.html 内の <code>firebaseConfig</code> に、Firebaseコンソールで発行された値を貼り付けてください。';
+} else {
+  onAuthStateChanged(auth, user => {
+    teardown();
+    if (user) startSession(user);
+    else { me = null; showGate('auth'); setAuthMode(authMode); }
+  });
+}
 </script>
 </body>
 </html>
