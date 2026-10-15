@@ -420,7 +420,8 @@
           <span class="income-fixed" id="incomeFamily" style="display:none;"></span>
         </div>
         <div class="flow-divider"></div>
-        <div class="flow-row minus"><span>固定費合計</span><span class="flow-val" id="flowFixed">−¥0</span></div>
+        <div class="flow-row minus" id="flowSharedRow" style="display:none;"><span>家族共有の固定費</span><span class="flow-val" id="flowShared">−¥0</span></div>
+        <div class="flow-row minus"><span id="flowFixedLabel">固定費合計</span><span class="flow-val" id="flowFixed">−¥0</span></div>
         <div class="flow-divider"></div>
         <div class="flow-row free"><span>自由に使えるお金</span><span class="flow-val" id="flowFree">¥0</span></div>
         <div class="flow-row minus"><span>今月の変動費（支出タブ）</span><span class="flow-val" id="flowVar">−¥0</span></div>
@@ -429,11 +430,16 @@
           <span class="flow-hero-label">今月の残金</span>
           <span class="flow-hero-val ok" id="flowRemain">¥0</span>
         </div>
+        <div class="fc-cum" id="flowNote" style="display:none;margin-top:8px;"></div>
       </div>
 
       <!-- 固定費追加 -->
       <div class="input-card">
         <div class="input-label">ADD FIXED COST</div>
+        <div class="scope-bar" id="fcTargetBar" style="margin:0 0 10px;">
+          <button class="scope-btn active" id="fcTargetShared" onclick="setFcTarget('shared')">👨‍👩‍👧 家族共有</button>
+          <button class="scope-btn" id="fcTargetMine" onclick="setFcTarget('mine')">👤 自分のみ</button>
+        </div>
         <input type="text" class="memo-input" id="fcName" placeholder="項目名（例：家賃、Netflix）" maxlength="20">
         <div class="fc-form-row">
           <input type="number" class="amount-input" id="fcAmount" style="font-size:18px;" inputmode="numeric" placeholder="月額 ¥">
@@ -443,10 +449,20 @@
         <button class="submit-btn" onclick="addFixedCost()">固定費を登録</button>
       </div>
 
+      <!-- 家族共有の固定費 -->
+      <div class="history-section" id="sharedFcSection" style="display:none;">
+        <div class="section-header">
+          <div class="section-title">👨‍👩‍👧 家族共有</div>
+          <div class="fc-total-line">合計 <span id="sharedFcTotalLabel">¥0</span>/月</div>
+        </div>
+        <div class="edit-hint">誰が変更しても家族全員に即時反映されます</div>
+        <div class="history-list" id="sharedFcList"></div>
+      </div>
+
       <!-- 固定費リスト -->
       <div class="history-section">
         <div class="section-header">
-          <div class="section-title">FIXED COSTS</div>
+          <div class="section-title" id="fcTitle">FIXED COSTS</div>
           <div class="fc-total-line">合計 <span id="fcTotalLabel">¥0</span>/月</div>
         </div>
         <div class="edit-hint" id="fcEditHint">項目をタップで編集</div>
@@ -545,6 +561,7 @@
 <div class="modal-overlay" id="fcEditOverlay" onclick="closeFcEditModal(event)">
   <div class="modal">
     <div class="modal-title">EDIT FIXED COST</div>
+    <div class="backup-note" id="fcEditNote" style="display:none;text-align:center;"></div>
     <div style="margin-bottom:14px;">
       <label style="font-size:14px;color:var(--text2);display:block;margin-bottom:8px;">項目名</label>
       <input type="text" class="modal-input-full" id="fcEditName" maxlength="20">
@@ -560,6 +577,7 @@
     <div class="modal-section-label">カテゴリ</div>
     <div class="fc-cats" id="fcEditCats" style="margin-bottom:14px;"></div>
     <button class="modal-save" onclick="saveFcEdit()">保存</button>
+    <button class="modal-sub-btn" id="fcMoveBtn" style="display:none;margin-top:8px;" onclick="moveFcToShared()">👨‍👩‍👧 家族共有に移す</button>
     <button class="modal-delete" onclick="deleteFcFromEdit()">削除</button>
   </div>
 </div>
@@ -573,6 +591,7 @@
     <div class="modal-title" id="releaseTitle"></div>
     <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">
       <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="background:rgba(0,168,84,0.08);border:1px solid var(--green);border-radius:8px;padding:8px 10px;">🆕 <b>固定費を家族で共有（v3.1.0）</b><br><span style="font-size:12px;color:var(--text3);">固定費タブに「家族共有」リストを追加しました。家族の誰が登録・変更しても全員の画面に即時反映されます。今までの個人の固定費は、項目をタップ→「家族共有に移す」で移せます。</span></div>
         <div>☁️ <b>クラウド保存に移行</b><br><span style="font-size:12px;color:var(--text3);">データはアカウントに保存されるようになりました。ブラウザの自動削除や機種変更でも消えません。</span></div>
         <div>👨‍👩‍👧 <b>家族で共有</b><br><span style="font-size:12px;color:var(--text3);">設定→「家族で共有」で招待コードを作って渡すと、家族の支出・固定費を合算して見られます（編集は自分の分だけ）。</span></div>
         <div>📲 <b>旧データの取り込み</b><br><span style="font-size:12px;color:var(--text3);">以前この端末で使っていたデータは、上部の案内か設定→データから取り込めます。v2で書き出したバックアップも読み込めます。</span></div>
@@ -610,7 +629,7 @@ import {
   arrayUnion, arrayRemove,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const CURRENT_VERSION = 'v3.0.0';
+const CURRENT_VERSION = 'v3.1.0';
 
 // ローカル開発用：localhost で ?emu を付けて開くとFirebaseエミュレータに接続
 const USE_EMU = ['localhost','127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).has('emu');
@@ -716,7 +735,8 @@ const memberSubs = {};       // uid -> unsubscribe
 const entriesCache = {};     // `${uid}|${month}` -> [entry]
 const entrySubs = {};        // `${uid}|${month}` -> unsubscribe
 const pendingKeys = new Set();
-let unsubMe = null, unsubHousehold = null;
+let unsubMe = null, unsubHousehold = null, unsubShared = null;
+let sharedFixed = [];       // households/{id}/fixedCosts
 let scope = 'me';
 let activeTab = 'expense';
 let viewMonth = currentMonth();
@@ -804,15 +824,31 @@ function syncEntrySubs() {
   });
 }
 
+function syncSharedFixed() {
+  const want = household ? household.id : null;
+  if (unsubShared && unsubShared.hid === want) return;
+  if (unsubShared) { unsubShared(); unsubShared = null; }
+  sharedFixed = [];
+  if (!want) return;
+  const un = onSnapshot(collection(db, 'households', want, 'fixedCosts'), { includeMetadataChanges:true }, snap => {
+    sharedFixed = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    snap.metadata.hasPendingWrites ? pendingKeys.add('shared') : pendingKeys.delete('shared');
+    updateSyncDot();
+    renderAll();
+  }, err => { console.warn('sharedFixed', err.code); sharedFixed = []; renderAll(); });
+  un.hid = want;
+  unsubShared = un;
+}
+
 function subscribeHousehold(hid) {
   if (unsubHousehold) { unsubHousehold(); unsubHousehold = null; }
   household = null;
-  if (!hid) { syncMemberSubs(); syncEntrySubs(); renderAll(); return; }
+  if (!hid) { syncMemberSubs(); syncEntrySubs(); syncSharedFixed(); renderAll(); return; }
   unsubHousehold = onSnapshot(doc(db, 'households', hid), snap => {
     household = snap.exists() ? { id:snap.id, ...snap.data() } : null;
     if (household && !household.members.includes(me.uid)) household = null;
-    syncMemberSubs(); syncEntrySubs(); renderAll();
-  }, err => { console.warn('household', err.code); household = null; syncMemberSubs(); renderAll(); });
+    syncMemberSubs(); syncEntrySubs(); syncSharedFixed(); renderAll();
+  }, err => { console.warn('household', err.code); household = null; syncMemberSubs(); syncSharedFixed(); renderAll(); });
 }
 
 function syncMemberSubs() {
@@ -833,6 +869,7 @@ function syncMemberSubs() {
 function teardown() {
   if (unsubMe) unsubMe(); unsubMe = null;
   if (unsubHousehold) unsubHousehold(); unsubHousehold = null;
+  if (unsubShared) unsubShared(); unsubShared = null; sharedFixed = [];
   Object.keys(memberSubs).forEach(u => { memberSubs[u](); delete memberSubs[u]; delete memberDocs[u]; });
   Object.keys(entrySubs).forEach(k => { entrySubs[k](); delete entrySubs[k]; delete entriesCache[k]; });
   pendingKeys.clear();
@@ -1182,13 +1219,23 @@ function renderFcEditCats() {
 }
 function setFcEditCat(key) { fcEditingCat = key; renderFcEditCats(); }
 
+// 固定費の登録先：家族グループ所属中は「家族共有」が既定
+let fcTarget = 'shared';
+function setFcTarget(t) { fcTarget = t; renderFixed(); }
+const sharedFcCol = () => collection(db, 'households', household.id, 'fixedCosts');
+
 function addFixedCost() {
   const name = $('fcName').value.trim();
   const amount = parseInt($('fcAmount').value);
   if (!name) { $('fcName').focus(); return; }
   if (!amount || amount <= 0) { $('fcAmount').focus(); return; }
-  const list = [...D().fixedCosts, { id:Date.now(), name, amount, startYm:$('fcStart').value||currentMonth(), cat:selectedFcCat }];
-  saveUser({ fixedCosts:list });
+  const startYm = $('fcStart').value || currentMonth();
+  if (household && fcTarget === 'shared') {
+    fire(setDoc(doc(sharedFcCol()), { name, amount, startYm, cat:selectedFcCat,
+      createdBy:me.uid, updatedBy:me.uid, ts:Date.now() }), '登録');
+  } else {
+    saveUser({ fixedCosts:[...D().fixedCosts, { id:Date.now(), name, amount, startYm, cat:selectedFcCat }] });
+  }
   $('fcName').value = ''; $('fcAmount').value = ''; $('fcStart').value = '';
   selectedFcCat = 'fother'; renderFcCats();
 }
@@ -1196,14 +1243,20 @@ function saveIncome() {
   const val = parseInt($('incomeInput').value);
   saveUser({ income:(val && val > 0) ? val : 0 });
 }
-function openFcEditModal(id) {
-  const item = D().fixedCosts.find(f => f.id === id);
+// kind: 'personal'（自分の固定費。id は数値） / 'shared'（家族共有。id はドキュメントID）
+let fcEditingKind = 'personal';
+function openFcEditModal(kind, id) {
+  const item = kind === 'shared' ? sharedFixed.find(f => f.id === id) : D().fixedCosts.find(f => f.id === id);
   if (!item) return;
-  fcEditingId = id;
+  fcEditingKind = kind; fcEditingId = id;
   $('fcEditName').value = item.name;
   $('fcEditAmount').value = item.amount;
   $('fcEditStart').value = item.startYm || '';
   fcEditingCat = item.cat || 'fother';
+  $('fcEditNote').style.display = kind === 'shared' ? '' : 'none';
+  $('fcEditNote').textContent = kind === 'shared'
+    ? `👨‍👩‍👧 家族共有の固定費です（最終更新：${memberName(item.updatedBy || item.createdBy)}）。変更は家族全員に反映されます` : '';
+  $('fcMoveBtn').style.display = (kind === 'personal' && household) ? '' : 'none';
   renderFcEditCats();
   $('fcEditOverlay').classList.add('open');
 }
@@ -1212,24 +1265,71 @@ function saveFcEdit() {
   const name = $('fcEditName').value.trim();
   const amount = parseInt($('fcEditAmount').value);
   if (!name || !amount || amount <= 0) return;
-  const list = D().fixedCosts.map(f => f.id !== fcEditingId ? f :
-    { ...f, name, amount, startYm:$('fcEditStart').value || f.startYm, cat:fcEditingCat });
-  saveUser({ fixedCosts:list });
+  if (fcEditingKind === 'shared') {
+    const cur = sharedFixed.find(f => f.id === fcEditingId);
+    if (!cur || !household) return;
+    fire(setDoc(doc(sharedFcCol(), fcEditingId), { name, amount, startYm:$('fcEditStart').value || cur.startYm,
+      cat:fcEditingCat, updatedBy:me.uid, ts:Date.now() }, { merge:true }));
+  } else {
+    const list = D().fixedCosts.map(f => f.id !== fcEditingId ? f :
+      { ...f, name, amount, startYm:$('fcEditStart').value || f.startYm, cat:fcEditingCat });
+    saveUser({ fixedCosts:list });
+  }
   $('fcEditOverlay').classList.remove('open');
 }
 function deleteFcFromEdit() {
-  if (!confirm('この固定費を削除しますか？')) return;
-  saveUser({ fixedCosts:D().fixedCosts.filter(f => f.id !== fcEditingId) }, '削除');
+  const shared = fcEditingKind === 'shared';
+  if (!confirm(shared ? 'この固定費を削除しますか？\n（家族全員のリストから消えます）' : 'この固定費を削除しますか？')) return;
+  if (shared) { if (household) fire(deleteDoc(doc(sharedFcCol(), fcEditingId)), '削除'); }
+  else saveUser({ fixedCosts:D().fixedCosts.filter(f => f.id !== fcEditingId) }, '削除');
   $('fcEditOverlay').classList.remove('open');
+}
+// 自分の固定費 → 家族共有へ移動（1回の書き込みでまとめて行う）
+function moveFcToShared() {
+  if (!household || fcEditingKind !== 'personal') return;
+  const item = D().fixedCosts.find(f => f.id === fcEditingId);
+  if (!item) return;
+  const name = $('fcEditName').value.trim() || item.name;
+  const amount = parseInt($('fcEditAmount').value) || item.amount;
+  const b = writeBatch(db);
+  b.set(doc(sharedFcCol()), { name, amount, startYm:$('fcEditStart').value || item.startYm || currentMonth(),
+    cat:fcEditingCat, createdBy:me.uid, updatedBy:me.uid, ts:Date.now() });
+  b.set(userRef(), { fixedCosts:D().fixedCosts.filter(f => f.id !== fcEditingId) }, { merge:true });
+  fire(b.commit(), '移動').then(ok => { if (ok) toast('家族共有に移しました'); });
+  $('fcEditOverlay').classList.remove('open');
+}
+
+function fcItemHtml(f, opts) {
+  const c = getFixedCat(f.cat);
+  const months = monthsSince(f.startYm);
+  const cumLabel = months === 0 ? `開始前（${ymLabel(f.startYm)}〜）`
+    : `${ymLabel(f.startYm)}〜 ${months}ヶ月 · 累計 <b>${fmt(months * f.amount)}</b>`;
+  const click = opts.editable ? `onclick="openFcEditModal('${opts.kind}', ${opts.kind==='shared' ? `'${esc(f.id)}'` : Number(f.id)})"` : '';
+  return `<div class="history-item${opts.editable?'':' readonly'}" style="background:${opts.bg};border-color:${opts.border};" ${click}>
+    <div class="history-left">
+      <div class="history-cat" style="color:${c.color};">${opts.badge||''}<span>${c.emoji} ${c.label}</span></div>
+      <div class="history-memo">${esc(f.name)}</div>
+      <div class="fc-cum">${cumLabel}${opts.extra||''}</div>
+    </div>
+    <div class="history-right">
+      <div class="history-amount">${fmt(f.amount)}<span style="font-size:11px;color:var(--text3);">/月</span></div>
+      ${opts.editable?'<span style="color:var(--text3);font-size:13px;margin-left:8px;">›</span>':''}
+    </div>
+  </div>`;
 }
 
 function renderFixed() {
   if (!me || !myDoc) return;
   const fam = scope === 'family';
+  const inHH = !!household;
   const uids = scopeUids();
-  const items = uids.flatMap(u => userData(u).fixedCosts.map(f => ({ ...f, _uid:u })));
+  const personal = uids.flatMap(u => userData(u).fixedCosts.map(f => ({ ...f, _uid:u })));
+  const shared = inHH ? sharedFixed : [];
   const income = uids.reduce((s,u)=>s+(userData(u).income||0),0);
-  const fixedTotal = items.reduce((s,f)=>s+f.amount,0);
+  const personalTotal = personal.reduce((s,f)=>s+f.amount,0);
+  const sharedTotal = shared.reduce((s,f)=>s+f.amount,0);
+  // 自分表示：自分の月収 − 自分の固定費 − 自分の支出 ／ 家族表示：家族の月収 − 家族共有 − 全員の個人固定費 − 全員の支出
+  const fixedTotal = personalTotal + (fam ? sharedTotal : 0);
   const varSpent = viewEntries(currentMonth()).reduce((s,e)=>s+e.amount,0);
   const free = income - fixedTotal;
   const remain = free - varSpent;
@@ -1239,37 +1339,45 @@ function renderFixed() {
   $('incomeFamily').style.display = fam ? '' : 'none';
   $('incomeFamily').textContent = fmt(income);
   if (document.activeElement !== $('incomeInput')) $('incomeInput').value = D().income || '';
-  $('flowFixed').textContent = '−'+fmt(fixedTotal);
+  $('flowSharedRow').style.display = (fam && inHH) ? '' : 'none';
+  $('flowShared').textContent = '−'+fmt(sharedTotal);
+  $('flowFixedLabel').textContent = inHH ? (fam ? '個人の固定費（全員分）' : '自分の固定費') : '固定費合計';
+  $('flowFixed').textContent = '−'+fmt(personalTotal);
   $('flowFree').textContent = signed(free);
   $('flowVar').textContent = '−'+fmt(varSpent);
   const remainEl = $('flowRemain');
   remainEl.textContent = signed(remain);
   const remainPct = free > 0 ? (varSpent/free)*100 : 100;
   remainEl.className = 'flow-hero-val ' + (remain<0?'over':remainPct>=80?'warn':'ok');
-  $('fcTotalLabel').textContent = fmt(fixedTotal);
-  $('fcEditHint').textContent = fam ? '自分の項目のみタップで編集できます' : '項目をタップで編集';
+  const showNote = inHH && !fam && sharedTotal > 0;
+  $('flowNote').style.display = showNote ? '' : 'none';
+  if (showNote) $('flowNote').innerHTML = `※ 家族共有の固定費 <b>${fmt(sharedTotal)}</b>/月 は「家族の合計」で差し引かれます`;
 
+  // 登録先の切替（家族グループ所属中のみ）
+  $('fcTargetBar').classList.toggle('show', inHH);
+  const target = inHH ? fcTarget : 'mine';
+  $('fcTargetShared').className = 'scope-btn' + (target==='shared'?' active':'');
+  $('fcTargetMine').className = 'scope-btn' + (target==='mine'?' active':'');
+
+  // 家族共有リスト
+  $('sharedFcSection').style.display = inHH ? '' : 'none';
+  $('sharedFcTotalLabel').textContent = fmt(sharedTotal);
+  $('sharedFcList').innerHTML = shared.length === 0
+    ? '<div class="empty-state">家族共有の固定費はまだありません</div>'
+    : [...shared].sort((a,b)=>b.amount-a.amount).map(f => fcItemHtml(f, { kind:'shared', editable:true,
+        bg:'rgba(0,168,84,0.06)', border:'rgba(0,168,84,0.25)',
+        extra: f.updatedBy ? ` · 更新 ${esc(memberName(f.updatedBy))}` : '' })).join('');
+
+  // 個人の固定費リスト
+  $('fcTitle').textContent = inHH ? (fam ? '👤 個人（全員分）' : '👤 自分のみ') : 'FIXED COSTS';
+  $('fcTotalLabel').textContent = fmt(personalTotal);
+  $('fcEditHint').textContent = fam ? '自分の項目のみタップで編集できます'
+    : inHH ? 'タップで編集・家族共有への移動ができます' : '項目をタップで編集';
   const list = $('fcList');
-  if (items.length === 0) { list.innerHTML = '<div class="empty-state">固定費が登録されていません</div>'; return; }
-  list.innerHTML = [...items].sort((a,b)=>b.amount-a.amount).map(f => {
-    const c = getFixedCat(f.cat);
-    const months = monthsSince(f.startYm);
-    const cumLabel = months === 0 ? `開始前（${ymLabel(f.startYm)}〜）`
-      : `${ymLabel(f.startYm)}〜 ${months}ヶ月 · 累計 <b>${fmt(months * f.amount)}</b>`;
-    const mine = f._uid === me.uid;
-    const badge = fam ? `<span class="member-badge" style="color:${memberColor(f._uid)};">${esc(memberName(f._uid))}</span>` : '';
-    return `<div class="history-item${mine?'':' readonly'}" style="background:rgba(136,136,136,0.06);border-color:var(--border);" ${mine?`onclick="openFcEditModal(${Number(f.id)})"`:''}>
-      <div class="history-left">
-        <div class="history-cat" style="color:${c.color};">${badge}<span>${c.emoji} ${c.label}</span></div>
-        <div class="history-memo">${esc(f.name)}</div>
-        <div class="fc-cum">${cumLabel}</div>
-      </div>
-      <div class="history-right">
-        <div class="history-amount">${fmt(f.amount)}<span style="font-size:11px;color:var(--text3);">/月</span></div>
-        ${mine?'<span style="color:var(--text3);font-size:13px;margin-left:8px;">›</span>':''}
-      </div>
-    </div>`;
-  }).join('');
+  if (personal.length === 0) { list.innerHTML = '<div class="empty-state">固定費が登録されていません</div>'; return; }
+  list.innerHTML = [...personal].sort((a,b)=>b.amount-a.amount).map(f => fcItemHtml(f, {
+    kind:'personal', editable:f._uid === me.uid, bg:'rgba(136,136,136,0.06)', border:'var(--border)',
+    badge: fam ? `<span class="member-badge" style="color:${memberColor(f._uid)};">${esc(memberName(f._uid))}</span>` : '' })).join('');
 }
 
 // ═══════════════════════════════════════════════
@@ -1631,7 +1739,7 @@ Object.assign(window, {
   setAuthMode, submitAuth, resetPassword, logout,
   switchTab, setScope, addExpense, changeMonth, toggleBreakdown, confirmClearMonth, shareLog,
   setMemoCat, setEditMemoCat, openEditModal, closeEditModal, saveEdit, deleteFromEdit,
-  setFcCat, setFcEditCat, addFixedCost, saveIncome, openFcEditModal, closeFcEditModal, saveFcEdit, deleteFcFromEdit,
+  setFcCat, setFcEditCat, setFcTarget, moveFcToShared, addFixedCost, saveIncome, openFcEditModal, closeFcEditModal, saveFcEdit, deleteFcFromEdit,
   renderQuickTags, toggleQuickTag,
   openModal, closeModal, saveSettings, setTheme, addQt, removeQt, addKw, removeKw,
   createHousehold, joinHousehold, leaveHousehold, shareCode,
