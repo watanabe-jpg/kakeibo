@@ -259,6 +259,31 @@
   .spinner { width:22px; height:22px; border:2px solid var(--border); border-top-color:var(--green); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 12px; }
   @keyframes spin { to { transform:rotate(360deg); } }
 
+  /* ── レシート読み取り ── */
+  .receipt-btn { width:100%; background:var(--surface2); border:1px dashed var(--border); border-radius:10px; color:var(--text2); font-size:13px; padding:9px; cursor:pointer; -webkit-appearance:none; margin-bottom:10px; }
+  .receipt-btn:active { opacity:0.8; }
+  .receipt-chip { display:none; align-items:center; justify-content:space-between; gap:8px; background:rgba(0,168,84,0.08); border:1px solid var(--green); color:var(--green); border-radius:8px; font-size:12px; padding:6px 10px; margin-bottom:10px; }
+  .receipt-chip.show { display:flex; }
+  .receipt-chip button { background:none; border:none; color:var(--green); font-size:16px; line-height:1; padding:0 4px; cursor:pointer; -webkit-appearance:none; }
+  .rc-overlay { position:fixed; inset:0; background:#111; z-index:150; display:none; flex-direction:column; color:#f0f0f0; padding-top:max(env(safe-area-inset-top),10px); padding-bottom:max(env(safe-area-inset-bottom),10px); }
+  .rc-overlay.open { display:flex; }
+  .rc-head { flex:0 0 auto; padding:6px 16px 8px; font-size:14px; font-weight:700; text-align:center; }
+  .rc-head span { display:block; font-size:11px; font-weight:400; color:#aaa; margin-top:3px; line-height:1.5; }
+  .rc-stage { flex:1 1 0; min-height:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .rc-wrap { position:relative; touch-action:none; }
+  .rc-wrap canvas { width:100%; height:100%; display:block; touch-action:none; background:#fff; }
+  .rc-dim { position:absolute; left:0; right:0; bottom:0; top:100%; background:rgba(0,0,0,0.72); pointer-events:none; }
+  .rc-handle { position:absolute; left:-10px; right:-10px; top:100%; height:44px; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; touch-action:none; cursor:ns-resize; }
+  .rc-handle::before { content:''; position:absolute; left:0; right:0; top:50%; height:3px; margin-top:-1.5px; background:#ffab40; }
+  .rc-handle span { position:relative; background:#ffab40; color:#000; font-size:11px; font-weight:700; border-radius:10px; padding:3px 10px; white-space:nowrap; }
+  .rc-actions { flex:0 0 auto; display:flex; gap:8px; padding:8px 16px 4px; }
+  .rc-actions button { flex:1; background:#2a2a2a; border:1px solid #444; border-radius:12px; color:#ddd; font-size:13px; padding:12px 6px; cursor:pointer; -webkit-appearance:none; }
+  .rc-actions button.primary { flex:1.4; background:#00c060; border-color:#00c060; color:#000; font-weight:700; font-size:15px; }
+  .rc-actions button:disabled { opacity:0.6; }
+  .rc-note { flex:0 0 auto; font-size:10px; color:#888; text-align:center; padding:2px 16px 4px; line-height:1.6; }
+  .rc-note a { color:#888; }
+  .grecaptcha-badge { visibility:hidden; }
+
   .toast { position:fixed; left:50%; bottom:max(calc(env(safe-area-inset-bottom) + 70px),80px); transform:translateX(-50%) translateY(20px); background:var(--text); color:var(--bg); font-size:13px; padding:9px 16px; border-radius:20px; opacity:0; pointer-events:none; transition:all 0.25s; z-index:300; max-width:90vw; text-align:center; }
   .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 </style>
@@ -354,6 +379,9 @@
     <!-- 入力カード -->
     <div class="input-card">
       <div class="input-label">ADD EXPENSE</div>
+      <button class="receipt-btn" id="receiptBtn" style="display:none;" onclick="pickReceipt()">📷 レシートを読み取る</button>
+      <input type="file" id="receiptFile" accept="image/*" capture="environment" style="display:none;" onchange="onReceiptPicked(event)">
+      <div class="receipt-chip" id="receiptChip"><span>🧾 <span id="receiptChipText"></span></span><button onclick="clearReceiptDate()" aria-label="今日の日付に戻す">×</button></div>
       <div class="input-note" id="inputNote">※ 現在月に追加されます</div>
       <div class="amount-wrap">
         <span class="yen">¥</span>
@@ -591,7 +619,8 @@
     <div class="modal-title" id="releaseTitle"></div>
     <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <div style="background:rgba(0,168,84,0.08);border:1px solid var(--green);border-radius:8px;padding:8px 10px;">🆕 <b>固定費を家族で共有（v3.1.0）</b><br><span style="font-size:12px;color:var(--text3);">固定費タブに「家族共有」リストを追加しました。家族の誰が登録・変更しても全員の画面に即時反映されます。今までの個人の固定費は、項目をタップ→「家族共有に移す」で移せます。</span></div>
+        <div style="background:rgba(0,168,84,0.08);border:1px solid var(--green);border-radius:8px;padding:8px 10px;">🆕 <b>レシート読み取り（v3.2.0）</b><br><span style="font-size:12px;color:var(--text3);">「📷 レシートを読み取る」で撮影すると、合計金額・店名・日付が入力欄に入ります。送る前に、カード番号などが載った下の部分を切り取ったり、指でなぞって黒く塗ったりできます。写真は保存されません。</span></div>
+        <div>👨‍👩‍👧 <b>固定費を家族で共有（v3.1.0）</b><br><span style="font-size:12px;color:var(--text3);">固定費タブに「家族共有」リストを追加しました。家族の誰が登録・変更しても全員の画面に即時反映されます。今までの個人の固定費は、項目をタップ→「家族共有に移す」で移せます。</span></div>
         <div>☁️ <b>クラウド保存に移行</b><br><span style="font-size:12px;color:var(--text3);">データはアカウントに保存されるようになりました。ブラウザの自動削除や機種変更でも消えません。</span></div>
         <div>👨‍👩‍👧 <b>家族で共有</b><br><span style="font-size:12px;color:var(--text3);">設定→「家族で共有」で招待コードを作って渡すと、家族の支出・固定費を合算して見られます（編集は自分の分だけ）。</span></div>
         <div>📲 <b>旧データの取り込み</b><br><span style="font-size:12px;color:var(--text3);">以前この端末で使っていたデータは、上部の案内か設定→データから取り込めます。v2で書き出したバックアップも読み込めます。</span></div>
@@ -599,6 +628,24 @@
     </div>
     <button class="modal-save" onclick="closeRelease()">はじめる</button>
   </div>
+</div>
+
+<!-- レシート確認（送信前に切り取り・黒塗り） -->
+<div class="rc-overlay" id="rcOverlay">
+  <div class="rc-head">送る範囲を確認<span>オレンジの線より下は送信されません（線は上下に動かせます）<br>隠したい所は指でなぞると黒く塗れます</span></div>
+  <div class="rc-stage" id="rcStage">
+    <div class="rc-wrap" id="rcWrap">
+      <canvas id="rcCanvas" width="1" height="1"></canvas>
+      <div class="rc-dim" id="rcDim"></div>
+      <div class="rc-handle" id="rcHandle"><span>▲ ここより下は送らない ▼</span></div>
+    </div>
+  </div>
+  <div class="rc-actions">
+    <button onclick="closeReceipt()">キャンセル</button>
+    <button onclick="resetReceiptPaint()">元に戻す</button>
+    <button class="primary" id="rcSend" onclick="sendReceipt()">読み取る</button>
+  </div>
+  <div class="rc-note">写真は保存されません。読み取りのため、残した部分だけがGoogle（Gemini）に1回送信されます。<br>This site is protected by reCAPTCHA and the Google <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.</div>
 </div>
 
 <button class="settings-fab" id="settingsFab" onclick="openModal()">⚙</button>
@@ -629,12 +676,17 @@ import {
   arrayUnion, arrayRemove,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const CURRENT_VERSION = 'v3.1.0';
+const CURRENT_VERSION = 'v3.2.0';
+
+// レシート読み取り用：App Check（Fraud Defense／旧称 reCAPTCHA Enterprise）のサイトキー
+// Google Cloud コンソールで作成し、Firebaseコンソール → App Check に登録した「サイトキー」を貼り付けてください（公開されて問題ない値です）
+const RECAPTCHA_SITE_KEY = "6LcV4iAuAAAAALkSy7ZVqdyvu5XJP9qgISMbgcaX";
 
 // ローカル開発用：localhost で ?emu を付けて開くとFirebaseエミュレータに接続
 const USE_EMU = ['localhost','127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).has('emu');
 const cfg = USE_EMU ? { apiKey:'demo-key', authDomain:'demo-kakeibo.firebaseapp.com', projectId:'demo-kakeibo', appId:'demo' } : firebaseConfig;
 const CONFIGURED = USE_EMU || !String(firebaseConfig.apiKey).startsWith('YOUR_');
+const RECEIPT_READY = CONFIGURED && (USE_EMU || !RECAPTCHA_SITE_KEY.startsWith('YOUR_'));
 
 let app, auth, db;
 if (CONFIGURED) {
@@ -648,6 +700,11 @@ if (CONFIGURED) {
   if (USE_EMU) {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings:true });
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  } else if (RECEIPT_READY) {
+    // App Check：このページ以外から Gemini の無料枠を使われないようにする（AI Logic で必須）
+    import('https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check.js')
+      .then(m => m.initializeAppCheck(app, { provider:new m.ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY), isTokenAutoRefreshEnabled:true }))
+      .catch(e => console.warn('app-check', e));
   }
 }
 
@@ -874,6 +931,7 @@ function teardown() {
   Object.keys(entrySubs).forEach(k => { entrySubs[k](); delete entrySubs[k]; delete entriesCache[k]; });
   pendingKeys.clear();
   myDoc = null; household = null; scope = 'me'; releaseChecked = false; legacyBannerHidden = false;
+  receiptDate = null; $('receiptChip').classList.remove('show');
 }
 
 // ═══════════════════════════════════════════════
@@ -1027,7 +1085,7 @@ function render() {
   const remaining = limit - spent;
   const pct = limit > 0 ? Math.min((spent/limit)*100,100) : 0;
 
-  $('inputNote').className = 'input-note' + (isCurrentMonth ? '' : ' show');
+  $('inputNote').className = 'input-note' + ((isCurrentMonth || receiptDate) ? '' : ' show');
   $('nextMonthBtn').disabled = !(addMonths(viewMonth,1) <= cm);
   $('monthNavLabel').textContent = monthToLabel(viewMonth);
   if (isCurrentMonth) {
@@ -1124,13 +1182,18 @@ function addExpense() {
   if (val > 100000000) { toast('金額が大きすぎます'); return; }
   const memo = $('memoInput').value.trim();
   const now = new Date();
-  const cm = currentMonth();
+  // レシートを読み取った場合はその日付で、そうでなければ今の日時で記録
+  const rd = receiptDate;
+  const cm = rd ? rd.ym : currentMonth();
   const ref = doc(expensesCol());
-  fire(setDoc(ref, {
+  fire(setDoc(ref, rd ? {
+    amount:val, memo, catOverride:selectedMemoCat, category:'private', month:rd.ym, ts:rd.ts, date:rd.md, time:rd.time,
+  } : {
     amount:val, memo, catOverride:selectedMemoCat, category:'private', month:cm, ts:now.getTime(),
     date:`${now.getMonth()+1}/${now.getDate()}`,
     time:`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
   }), '記録');
+  receiptDate = null; renderReceiptChip();
   $('amountInput').value = '';
   $('memoInput').value = '';
   selectedMemoCat = 'auto';
@@ -1719,6 +1782,202 @@ async function importFromText() {
 }
 
 // ═══════════════════════════════════════════════
+//  レシート読み取り（v3.2.0〜）
+//  撮影 → 端末内で「下を切り取る／黒く塗る」→ 残った部分だけを Gemini に1回送信 → 入力欄に反映
+//  写真はアプリにも Firebase にも保存しない
+// ═══════════════════════════════════════════════
+const RECEIPT_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.8-flash'];   // 先頭から順に試す
+const RC_MAX_W = 1200, RC_MAX_H = 1800;
+let receiptDate = null;      // { ym, md, time, ts }  読み取ったレシートの日付（記録時に使用）
+let rcOrig = null;           // 塗る前の画像（塗りのやり直し用）
+let rcCrop = 1;              // 送信する範囲の下端（0〜1）
+let rcBusy = false;
+let aiMod = null, aiInst = null;
+
+function initReceiptUi() {
+  $('receiptBtn').style.display = RECEIPT_READY ? '' : 'none';
+  const cv = $('rcCanvas'), handle = $('rcHandle');
+  let mode = null, last = null;
+  const toCanvas = ev => {
+    const r = cv.getBoundingClientRect();
+    return { x:(ev.clientX - r.left) / r.width * cv.width, y:(ev.clientY - r.top) / r.height * cv.height };
+  };
+  const paintTo = p => {
+    const ctx = cv.getContext('2d');
+    ctx.strokeStyle = '#000'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(cv.width * 0.07, 24);
+    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    last = p;
+  };
+  handle.addEventListener('pointerdown', ev => { mode = 'crop'; handle.setPointerCapture(ev.pointerId); ev.preventDefault(); });
+  cv.addEventListener('pointerdown', ev => { mode = 'paint'; cv.setPointerCapture(ev.pointerId); last = toCanvas(ev); paintTo({ x:last.x + 0.1, y:last.y }); ev.preventDefault(); });
+  const move = ev => {
+    if (mode === 'crop') {
+      const r = $('rcWrap').getBoundingClientRect();
+      rcCrop = Math.min(1, Math.max(0.08, (ev.clientY - r.top) / r.height));
+      layoutReceiptCrop();
+    } else if (mode === 'paint') paintTo(toCanvas(ev));
+  };
+  const end = () => { mode = null; };
+  handle.addEventListener('pointermove', move); cv.addEventListener('pointermove', move);
+  ['pointerup','pointercancel'].forEach(t => { handle.addEventListener(t, end); cv.addEventListener(t, end); });
+  window.addEventListener('resize', () => { if ($('rcOverlay').classList.contains('open')) layoutReceipt(); });
+}
+function layoutReceiptCrop() {
+  $('rcHandle').style.top = (rcCrop * 100) + '%';
+  $('rcDim').style.top = (rcCrop * 100) + '%';
+}
+function layoutReceipt() {
+  const cv = $('rcCanvas'), stage = $('rcStage').getBoundingClientRect();
+  const availW = stage.width - 24, availH = stage.height - 56;
+  const k = Math.min(availW / cv.width, availH / cv.height);
+  $('rcWrap').style.width = Math.floor(cv.width * k) + 'px';
+  $('rcWrap').style.height = Math.floor(cv.height * k) + 'px';
+  layoutReceiptCrop();
+}
+function pickReceipt() {
+  if (!RECEIPT_READY) { toast('レシート読み取りはまだ設定されていません'); return; }
+  $('receiptFile').value = '';
+  $('receiptFile').click();
+}
+function onReceiptPicked(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    const k = Math.min(1, RC_MAX_W / img.naturalWidth, RC_MAX_H / img.naturalHeight);
+    const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
+    rcOrig = document.createElement('canvas'); rcOrig.width = w; rcOrig.height = h;
+    rcOrig.getContext('2d').drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+    const cv = $('rcCanvas'); cv.width = w; cv.height = h;
+    cv.getContext('2d').drawImage(rcOrig, 0, 0);
+    rcCrop = 1;
+    $('rcOverlay').classList.add('open');
+    setReceiptBusy(false);
+    layoutReceipt();
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast('画像を開けませんでした'); };
+  img.src = url;
+}
+function resetReceiptPaint() {
+  if (!rcOrig) return;
+  $('rcCanvas').getContext('2d').drawImage(rcOrig, 0, 0);
+  rcCrop = 1; layoutReceiptCrop();
+}
+function closeReceipt() {
+  if (rcBusy) return;
+  $('rcOverlay').classList.remove('open');
+  // 画像を破棄
+  rcOrig = null;
+  const cv = $('rcCanvas'); cv.width = 1; cv.height = 1;
+  $('receiptFile').value = '';
+}
+function setReceiptBusy(b) {
+  rcBusy = b;
+  $('rcSend').disabled = b;
+  $('rcSend').textContent = b ? '読み取り中…' : '読み取る';
+}
+async function askGemini(base64) {
+  if (!aiMod) aiMod = await import('https://www.gstatic.com/firebasejs/12.19.0/firebase-ai.js');
+  if (!aiInst) aiInst = aiMod.getAI(app, { backend:new aiMod.GoogleAIBackend() });
+  const { Schema } = aiMod;
+  const schema = Schema.object({ properties:{
+    is_receipt: Schema.boolean(),
+    store: Schema.string(),
+    total: Schema.integer(),
+    date: Schema.string(),
+    time: Schema.string(),
+    category: Schema.enumString({ enum:CAT_DEFS.map(c => c.key) }),
+  } });
+  const prompt = `これは日本のレシート（領収書）の写真です。一部は黒く塗りつぶされていたり、下が切り取られている場合があります。次の項目を読み取ってJSONで答えてください。今日は ${today()} です。
+- is_receipt: レシート・領収書として読み取れたら true。そうでなければ false
+- store: 店名を短い一般的な呼び名で（支店名や「株式会社」は省く。例：「セブン-イレブン 渋谷3丁目店」→「セブンイレブン」）。不明なら空文字
+- total: 支払った合計金額（税込・円・整数）。「合計」「お買上計」「ご請求額」などの金額。小計、消費税額、お預り、お釣り、ポイントは選ばない。読み取れなければ 0
+- date: レシートの日付を YYYY-MM-DD で（和暦や2桁の年は西暦に直す）。不明なら空文字
+- time: レシートの時刻を HH:MM（24時間）で。不明なら空文字
+- category: convenience=コンビニ / super=スーパー・食料品・ドラッグストア / ec=ネット通販 / food=外食・カフェ / transit=交通・駐車場・ガソリン / other=その他`;
+  let lastErr;
+  for (const name of RECEIPT_MODELS) {
+    try {
+      const model = aiMod.getGenerativeModel(aiInst, { model:name,
+        generationConfig:{ temperature:0, responseMimeType:'application/json', responseSchema:schema } });
+      const res = await model.generateContent([prompt, { inlineData:{ data:base64, mimeType:'image/jpeg' } }]);
+      return JSON.parse(res.response.text());
+    } catch(e) {
+      lastErr = e; console.warn('receipt', name, e);
+      const m = String(e && (e.message || e.code) || '');
+      if (/429|quota|exhaust|app.?check|401|403|api.?not.?enabled|network/i.test(m)) break;   // モデルを替えても同じ
+    }
+  }
+  throw lastErr;
+}
+function receiptErrorMessage(e) {
+  const m = String(e && (e.message || e.code) || '');
+  if (/429|quota|exhaust/i.test(m)) return '無料枠の上限に達しました。少し時間をおくか、手入力してください';
+  if (/app.?check|401|403/i.test(m)) return '読み取りが許可されませんでした（App Checkの設定を確認してください）';
+  if (/api.?not.?enabled|not.?found|404/i.test(m)) return 'Firebase AI Logic が有効になっていないか、モデルが使えません';
+  if (/network|fetch/i.test(m)) return '通信できませんでした。電波状況を確認してください';
+  return '読み取りに失敗しました。手入力してください';
+}
+async function sendReceipt() {
+  if (rcBusy || !rcOrig) return;
+  const cv = $('rcCanvas');
+  // 線より下は切り捨てた画像を作る（黒塗りは cv に描き込み済み）
+  const out = document.createElement('canvas');
+  out.width = cv.width; out.height = Math.max(1, Math.round(cv.height * rcCrop));
+  out.getContext('2d').drawImage(cv, 0, 0);
+  const base64 = out.toDataURL('image/jpeg', 0.82).split(',')[1];
+  setReceiptBusy(true);
+  try {
+    const r = await askGemini(base64);
+    setReceiptBusy(false);
+    if (!r || r.is_receipt === false || (!(r.total > 0) && !r.store)) { toast('レシートとして読み取れませんでした。撮り直すか手入力してください', 4500); return; }
+    closeReceipt();
+    applyReceipt(r);
+  } catch(e) {
+    setReceiptBusy(false);
+    toast(receiptErrorMessage(e), 5000);
+  }
+}
+function parseReceiptDate(dateStr, timeStr) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || ''));
+  if (!m) return null;
+  const y = +m[1], mo = +m[2], d = +m[3];
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  const now = new Date();
+  const t = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(String(timeStr || ''));
+  if (t) dt.setHours(+t[1], +t[2], 0, 0); else dt.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0);
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  if (dt > endOfToday) return null;                                   // 未来の日付は読み間違い
+  if (now - dt > 400 * 86400000) return null;                         // 1年以上前も読み間違いとみなす
+  return { ym:`${y}-${m[2]}`, md:`${mo}/${d}`, ts:dt.getTime(),
+           time: t ? `${String(+t[1]).padStart(2,'0')}:${t[2]}` : '' };
+}
+function applyReceipt(r) {
+  const store = String(r.store || '').trim().slice(0, 40);
+  if (r.total > 0) $('amountInput').value = Math.round(r.total);
+  $('memoInput').value = store;
+  selectedMemoCat = 'auto';
+  // 店名のキーワードで判定できないときだけ、AIのカテゴリ判定を使う
+  if (detectCat(store, 'auto', D()) === 'other' && r.category && r.category !== 'other' && CAT_DEFS.some(c => c.key === r.category)) selectedMemoCat = r.category;
+  receiptDate = parseReceiptDate(r.date, r.time);
+  renderMemoCats(); renderQuickTags(); renderReceiptChip(); render();
+  const miss = [];
+  if (!(r.total > 0)) miss.push('金額');
+  if (!receiptDate) miss.push('日付（今日の日付で記録します）');
+  toast(miss.length ? `読み取りました。${miss.join('・')}は読み取れませんでした` : '読み取りました。内容を確認して「記録する」を押してください', 4500);
+  if (!(r.total > 0)) $('amountInput').focus();
+}
+function renderReceiptChip() {
+  $('receiptChip').classList.toggle('show', !!receiptDate);
+  if (receiptDate) $('receiptChipText').textContent = `レシートの日付 ${receiptDate.md}${receiptDate.time ? ' ' + receiptDate.time : ''} で記録します`;
+}
+function clearReceiptDate() { receiptDate = null; renderReceiptChip(); render(); }
+
+// ═══════════════════════════════════════════════
 //  リリースノート
 // ═══════════════════════════════════════════════
 function checkRelease() {
@@ -1745,6 +2004,7 @@ Object.assign(window, {
   createHousehold, joinHousehold, leaveHousehold, shareCode,
   importLegacyFromDevice, hideLegacyBanner, exportData, openImportModal, closeImportModal, importFromFile, importFromText,
   closeRelease,
+  pickReceipt, onReceiptPicked, resetReceiptPaint, closeReceipt, sendReceipt, clearReceiptDate,
 });
 
 // 月が変わったとき（日付をまたいで開きっぱなし）に追従
@@ -1756,6 +2016,7 @@ setInterval(() => { if (me && myDoc) { syncEntrySubs(); render(); } }, 60000);
 applyTheme('system');
 renderMemoCats();
 renderFcCats();
+initReceiptUi();
 if (!CONFIGURED) {
   showGate('auth');
   $('authForm').style.display = 'none';
