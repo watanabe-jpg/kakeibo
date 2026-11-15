@@ -265,6 +265,14 @@
   .receipt-chip { display:none; align-items:center; justify-content:space-between; gap:8px; background:rgba(0,168,84,0.08); border:1px solid var(--green); color:var(--green); border-radius:8px; font-size:12px; padding:6px 10px; margin-bottom:10px; }
   .receipt-chip.show { display:flex; }
   .receipt-chip button { background:none; border:none; color:var(--green); font-size:16px; line-height:1; padding:0 4px; cursor:pointer; -webkit-appearance:none; }
+  .history-sub { font-size:11px; color:var(--text3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:210px; }
+  .comment-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:16px; font-family:var(--sans); padding:8px 12px; outline:none; margin-bottom:10px; -webkit-appearance:none; resize:none; }
+  .comment-input:focus { border-color:var(--green); }
+  .comment-input::placeholder { color:var(--text3); font-size:13px; }
+  .item-list { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; }
+  .item-row { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; color:var(--text2); background:var(--surface2); border-radius:8px; padding:6px 10px; }
+  .item-row .nm { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .item-row .pr { font-family:var(--mono); color:var(--text); flex-shrink:0; }
   .rc-overlay { position:fixed; inset:0; background:#111; z-index:150; display:none; flex-direction:column; color:#f0f0f0; padding-top:max(env(safe-area-inset-top),10px); padding-bottom:max(env(safe-area-inset-bottom),10px); }
   .rc-overlay.open { display:flex; }
   .rc-head { flex:0 0 auto; padding:6px 16px 8px; font-size:14px; font-weight:700; text-align:center; }
@@ -382,12 +390,14 @@
       <button class="receipt-btn" id="receiptBtn" style="display:none;" onclick="pickReceipt()">📷 レシートを読み取る</button>
       <input type="file" id="receiptFile" accept="image/*" capture="environment" style="display:none;" onchange="onReceiptPicked(event)">
       <div class="receipt-chip" id="receiptChip"><span>🧾 <span id="receiptChipText"></span></span><button onclick="clearReceiptDate()" aria-label="今日の日付に戻す">×</button></div>
+      <div class="receipt-chip" id="itemsChip"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🛒 <span id="itemsChipText"></span></span><button onclick="clearReceiptItems()" aria-label="商品の明細を付けない">×</button></div>
       <div class="input-note" id="inputNote">※ 現在月に追加されます</div>
       <div class="amount-wrap">
         <span class="yen">¥</span>
         <input type="number" class="amount-input" id="amountInput" placeholder="0" inputmode="numeric">
       </div>
       <input type="text" class="memo-input" id="memoInput" placeholder="どこで何を（例：セブン　コーヒー）" maxlength="40" oninput="renderQuickTags()">
+      <input type="text" class="comment-input" id="commentInput" placeholder="💬 コメント（任意）例：来客用、誕生日のケーキ" maxlength="100">
       <div id="quickTags"></div>
       <div class="memo-cats" id="memoCats"></div>
       <button class="submit-btn" id="submitBtn" onclick="addExpense()">記録する</button>
@@ -569,7 +579,7 @@
 <!-- Edit modal -->
 <div class="modal-overlay" id="editOverlay" onclick="closeEditModal(event)">
   <div class="modal">
-    <div class="modal-title">EDIT</div>
+    <div class="modal-title" id="editTitle">EDIT</div>
     <div class="modal-row">
       <label>金額</label>
       <input type="number" class="modal-input" id="editAmount" inputmode="numeric">
@@ -580,8 +590,16 @@
     </div>
     <div class="modal-section-label">メモカテゴリ</div>
     <div class="memo-cats" id="editMemoCats" style="margin-bottom:14px;"></div>
-    <button class="modal-save" onclick="saveEdit()">保存</button>
-    <button class="modal-delete" onclick="deleteFromEdit()">削除</button>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:14px;color:var(--text2);display:block;margin-bottom:8px;">💬 コメント</label>
+      <textarea class="comment-input" id="editComment" maxlength="100" rows="2" style="margin-bottom:0;" placeholder="あとで思い出すためのメモ（任意）"></textarea>
+    </div>
+    <div id="editItemsBlock" style="display:none;">
+      <div class="modal-section-label" id="editItemsLabel">🛒 買ったもの</div>
+      <div class="item-list" id="editItems"></div>
+    </div>
+    <button class="modal-save" id="editSaveBtn" onclick="saveEdit()">保存</button>
+    <button class="modal-delete" id="editDeleteBtn" onclick="deleteFromEdit()">削除</button>
   </div>
 </div>
 
@@ -619,7 +637,8 @@
     <div class="modal-title" id="releaseTitle"></div>
     <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <div style="background:rgba(0,168,84,0.08);border:1px solid var(--green);border-radius:8px;padding:8px 10px;">🆕 <b>レシート読み取り（v3.2.0）</b><br><span style="font-size:12px;color:var(--text3);">「📷 レシートを読み取る」で撮影すると、合計金額・店名・日付が入力欄に入ります。送る前に、カード番号などが載った下の部分を切り取ったり、指でなぞって黒く塗ったりできます。写真は保存されません。</span></div>
+        <div style="background:rgba(0,168,84,0.08);border:1px solid var(--green);border-radius:8px;padding:8px 10px;">🆕 <b>買ったものとコメントを記録（v3.3.0）</b><br><span style="font-size:12px;color:var(--text3);">レシートを読み取ると、商品の明細も一緒に保存されます。入力欄と編集画面にコメント欄も追加しました。履歴の項目をタップすると明細とコメントを見られます（家族の記録も閲覧できます）。</span></div>
+        <div>📷 <b>レシート読み取り（v3.2.0）</b><br><span style="font-size:12px;color:var(--text3);">「📷 レシートを読み取る」で撮影すると、合計金額・店名・日付が入力欄に入ります。送る前に、カード番号などが載った下の部分を切り取ったり、指でなぞって黒く塗ったりできます。写真は保存されません。</span></div>
         <div>👨‍👩‍👧 <b>固定費を家族で共有（v3.1.0）</b><br><span style="font-size:12px;color:var(--text3);">固定費タブに「家族共有」リストを追加しました。家族の誰が登録・変更しても全員の画面に即時反映されます。今までの個人の固定費は、項目をタップ→「家族共有に移す」で移せます。</span></div>
         <div>☁️ <b>クラウド保存に移行</b><br><span style="font-size:12px;color:var(--text3);">データはアカウントに保存されるようになりました。ブラウザの自動削除や機種変更でも消えません。</span></div>
         <div>👨‍👩‍👧 <b>家族で共有</b><br><span style="font-size:12px;color:var(--text3);">設定→「家族で共有」で招待コードを作って渡すと、家族の支出・固定費を合算して見られます（編集は自分の分だけ）。</span></div>
@@ -676,7 +695,7 @@ import {
   arrayUnion, arrayRemove,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const CURRENT_VERSION = 'v3.2.0';
+const CURRENT_VERSION = 'v3.3.0';
 
 // レシート読み取り用：App Check（Fraud Defense／旧称 reCAPTCHA Enterprise）のサイトキー
 // Google Cloud コンソールで作成し、Firebaseコンソール → App Check に登録した「サイトキー」を貼り付けてください（公開されて問題ない値です）
@@ -931,7 +950,7 @@ function teardown() {
   Object.keys(entrySubs).forEach(k => { entrySubs[k](); delete entrySubs[k]; delete entriesCache[k]; });
   pendingKeys.clear();
   myDoc = null; household = null; scope = 'me'; releaseChecked = false; legacyBannerHidden = false;
-  receiptDate = null; $('receiptChip').classList.remove('show');
+  receiptDate = null; receiptItems = []; $('receiptChip').classList.remove('show'); $('itemsChip').classList.remove('show');
 }
 
 // ═══════════════════════════════════════════════
@@ -1150,7 +1169,7 @@ function render() {
   $('breakdownList').innerHTML = bd;
 
   // History
-  $('editHint').textContent = fam ? '自分の項目のみタップで編集できます' : '項目をタップで編集';
+  $('editHint').textContent = fam ? '自分の項目はタップで編集／家族の項目は明細を見られます' : '項目をタップで編集';
   const list = $('historyList');
   if (entries.length === 0) {
     list.innerHTML = '<div class="empty-state">記録がありません</div>';
@@ -1159,14 +1178,20 @@ function render() {
       const c = getCat(detectCat(e.memo, e.catOverride, userData(e._uid)));
       const mine = e._uid === me.uid;
       const badge = fam ? `<span class="member-badge" style="color:${memberColor(e._uid)};">${esc(memberName(e._uid))}</span>` : '';
-      return `<div class="history-item${mine?'':' readonly'}" style="background:${c.bg};border-color:${c.border};" ${mine?`onclick="openEditModal('${esc(e.id)}')"`:''}>
+      const items = Array.isArray(e.items) ? e.items : [];
+      const hasDetail = items.length > 0 || !!e.comment;
+      const tappable = mine || hasDetail;
+      const itemLine = items.length ? `<div class="history-sub">🛒 ${esc(itemsSummary(items))}</div>` : '';
+      const commentLine = e.comment ? `<div class="history-sub">💬 ${esc(e.comment)}</div>` : '';
+      return `<div class="history-item${tappable?'':' readonly'}" style="background:${c.bg};border-color:${c.border};" ${tappable?`onclick="openEditModal('${esc(e.id)}','${esc(e._uid)}')"`:''}>
         <div class="history-left">
           <div class="history-cat" style="color:${c.color};">${badge}<span>${c.emoji} ${c.label} · ${esc(e.date||'—')} ${esc(e.time||'')}</span></div>
           ${e.memo?`<div class="history-memo">${esc(e.memo)}</div>`:'<div class="history-memo" style="color:var(--text3)">—</div>'}
+          ${itemLine}${commentLine}
         </div>
         <div class="history-right">
           <div class="history-amount">${fmt(e.amount)}</div>
-          ${mine?'<span style="color:var(--text3);font-size:13px;margin-left:8px;">›</span>':''}
+          ${tappable?'<span style="color:var(--text3);font-size:13px;margin-left:8px;">›</span>':''}
         </div>
       </div>`;
     }).join('');
@@ -1186,14 +1211,18 @@ function addExpense() {
   const rd = receiptDate;
   const cm = rd ? rd.ym : currentMonth();
   const ref = doc(expensesCol());
+  const extra = {};
+  const comment = $('commentInput').value.trim().slice(0, 100);
+  if (comment) extra.comment = comment;
+  if (receiptItems.length) extra.items = receiptItems;
   fire(setDoc(ref, rd ? {
-    amount:val, memo, catOverride:selectedMemoCat, category:'private', month:rd.ym, ts:rd.ts, date:rd.md, time:rd.time,
+    amount:val, memo, catOverride:selectedMemoCat, category:'private', month:rd.ym, ts:rd.ts, date:rd.md, time:rd.time, ...extra,
   } : {
     amount:val, memo, catOverride:selectedMemoCat, category:'private', month:cm, ts:now.getTime(),
     date:`${now.getMonth()+1}/${now.getDate()}`,
-    time:`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
+    time:`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`, ...extra,
   }), '記録');
-  receiptDate = null; renderReceiptChip();
+  receiptDate = null; receiptItems = []; $('commentInput').value = ''; renderReceiptChip();
   $('amountInput').value = '';
   $('memoInput').value = '';
   selectedMemoCat = 'auto';
@@ -1208,24 +1237,56 @@ function toggleBreakdown() {
   $('breakdownToggle').classList.toggle('open');
 }
 
-function openEditModal(id) {
-  const entry = entriesOf(me.uid, viewMonth).find(e => e.id === id);
+function itemsSummary(items) {
+  const names = items.slice(0, 3).map(i => i.name).join('、');
+  return items.length > 3 ? `${names} ほか${items.length - 3}点` : names;
+}
+function cleanItems(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(i => ({ name:String((i && i.name) || '').trim().slice(0, 40), price:Math.round(Number(i && i.price) || 0) }))
+    .filter(i => i.name).slice(0, 60);
+}
+let editingItems = [], editingReadonly = false;
+function renderEditItems() {
+  $('editItemsBlock').style.display = editingItems.length ? '' : 'none';
+  $('editItemsLabel').textContent = `🛒 買ったもの（${editingItems.length}点）`;
+  $('editItems').innerHTML = editingItems.map((it, i) => `<div class="item-row"><span class="nm">${esc(it.name)}</span>
+    <span class="pr">${it.price ? signed(it.price) : ''}</span>
+    ${editingReadonly ? '' : `<button class="kw-remove" onclick="removeEditItem(${i})" aria-label="削除">×</button>`}</div>`).join('');
+}
+function removeEditItem(i) { editingItems.splice(i, 1); renderEditItems(); }
+// 自分の記録は編集、家族の記録は閲覧のみ
+function openEditModal(id, uid) {
+  uid = uid || me.uid;
+  const entry = entriesOf(uid, viewMonth).find(e => e.id === id);
   if (!entry) return;
   editingId = id;
+  editingReadonly = uid !== me.uid;
+  $('editTitle').textContent = editingReadonly ? `${memberName(uid)} の記録` : 'EDIT';
   $('editAmount').value = entry.amount;
   $('editMemo').value = entry.memo || '';
+  $('editComment').value = entry.comment || '';
+  editingItems = cleanItems(entry.items);
   editingMemoCat = entry.catOverride || 'auto';
-  renderEditMemoCats();
+  ['editAmount','editMemo','editComment'].forEach(k => { $(k).disabled = editingReadonly; });
+  $('editSaveBtn').style.display = editingReadonly ? 'none' : '';
+  $('editDeleteBtn').style.display = editingReadonly ? 'none' : '';
+  $('editMemoCats').style.pointerEvents = editingReadonly ? 'none' : '';
+  renderEditMemoCats(); renderEditItems();
   $('editOverlay').classList.add('open');
 }
 function closeEditModal(e) { if (e.target === $('editOverlay')) $('editOverlay').classList.remove('open'); }
 function saveEdit() {
+  if (editingReadonly) return;
   const val = parseInt($('editAmount').value);
   if (!val || val <= 0) { $('editAmount').focus(); return; }
-  fire(setDoc(doc(expensesCol(), editingId), { amount:val, memo:$('editMemo').value.trim(), catOverride:editingMemoCat }, { merge:true }));
+  // items は配列なので merge でも丸ごと置き換わる
+  fire(setDoc(doc(expensesCol(), editingId), { amount:val, memo:$('editMemo').value.trim(), catOverride:editingMemoCat,
+    comment:$('editComment').value.trim().slice(0, 100), items:editingItems }, { merge:true }));
   $('editOverlay').classList.remove('open');
 }
 function deleteFromEdit() {
+  if (editingReadonly) return;
   if (!confirm('この項目を削除しますか？')) return;
   fire(deleteDoc(doc(expensesCol(), editingId)), '削除');
   $('editOverlay').classList.remove('open');
@@ -1701,6 +1762,7 @@ async function importDataToCloud(d) {
         ops.push([`legacy_${String(e.id||ts).replace(/[^\w.-]/g,'_')}`, {
           amount, memo:String(e.memo||'').slice(0,60), catOverride:e.catOverride||'auto', category:e.category||'private',
           month:m, ts, date:String(e.date||'—'), time:String(e.time||''),
+          ...(e.comment ? { comment:String(e.comment).slice(0,100) } : {}), ...(cleanItems(e.items).length ? { items:cleanItems(e.items) } : {}),
         }]);
       });
     });
@@ -1738,7 +1800,8 @@ async function exportData() {
     const months = {};
     snap.docs.map(x => ({ id:x.id, ...x.data() })).sort((a,b)=>(b.ts||0)-(a.ts||0)).forEach(e => {
       (months[e.month] = months[e.month] || []).push({ id:e.ts, amount:e.amount, category:e.category||'private',
-        memo:e.memo||'', catOverride:e.catOverride||'auto', date:e.date, time:e.time });
+        memo:e.memo||'', catOverride:e.catOverride||'auto', date:e.date, time:e.time,
+        ...(e.comment ? { comment:e.comment } : {}), ...(Array.isArray(e.items) && e.items.length ? { items:e.items } : {}) });
     });
     const d = D();
     const json = JSON.stringify({ app:'kakeibo', ver:CURRENT_VERSION, exported:new Date().toISOString(),
@@ -1789,6 +1852,7 @@ async function importFromText() {
 const RECEIPT_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.8-flash'];   // 先頭から順に試す
 const RC_MAX_W = 1200, RC_MAX_H = 1800;
 let receiptDate = null;      // { ym, md, time, ts }  読み取ったレシートの日付（記録時に使用）
+let receiptItems = [];       // [{ name, price }]     読み取った商品の明細（記録時に保存）
 let rcOrig = null;           // 塗る前の画像（塗りのやり直し用）
 let rcCrop = 1;              // 送信する範囲の下端（0〜1）
 let rcBusy = false;
@@ -1890,6 +1954,7 @@ async function askGemini(base64) {
     date: Schema.string(),
     time: Schema.string(),
     category: Schema.enumString({ enum:CAT_DEFS.map(c => c.key) }),
+    items: Schema.array({ items:Schema.object({ properties:{ name:Schema.string(), price:Schema.integer() } }) }),
   } });
   const prompt = `これは日本のレシート（領収書）の写真です。一部は黒く塗りつぶされていたり、下が切り取られている場合があります。次の項目を読み取ってJSONで答えてください。今日は ${today()} です。
 - is_receipt: レシート・領収書として読み取れたら true。そうでなければ false
@@ -1897,6 +1962,7 @@ async function askGemini(base64) {
 - total: 支払った合計金額（税込・円・整数）。「合計」「お買上計」「ご請求額」などの金額。小計、消費税額、お預り、お釣り、ポイントは選ばない。読み取れなければ 0
 - date: レシートの日付を YYYY-MM-DD で（和暦や2桁の年は西暦に直す）。不明なら空文字
 - time: レシートの時刻を HH:MM（24時間）で。不明なら空文字
+- items: 買った商品を上から順に。name は商品名を短く読みやすく（コード・記号・「※」「軽」などの印は省く）、price はその行の金額（円・整数。数量が複数ならその行の合計）。値引き・割引は name を「値引き」として price をマイナスに。小計・消費税・合計・お預り・お釣り・ポイントの行は入れない。読み取れない・写っていない場合は空の配列。最大40件
 - category: convenience=コンビニ / super=スーパー・食料品・ドラッグストア / ec=ネット通販 / food=外食・カフェ / transit=交通・駐車場・ガソリン / other=その他`;
   let lastErr;
   for (const name of RECEIPT_MODELS) {
@@ -1964,6 +2030,7 @@ function applyReceipt(r) {
   // 店名のキーワードで判定できないときだけ、AIのカテゴリ判定を使う
   if (detectCat(store, 'auto', D()) === 'other' && r.category && r.category !== 'other' && CAT_DEFS.some(c => c.key === r.category)) selectedMemoCat = r.category;
   receiptDate = parseReceiptDate(r.date, r.time);
+  receiptItems = cleanItems(r.items).slice(0, 40);
   renderMemoCats(); renderQuickTags(); renderReceiptChip(); render();
   const miss = [];
   if (!(r.total > 0)) miss.push('金額');
@@ -1973,9 +2040,12 @@ function applyReceipt(r) {
 }
 function renderReceiptChip() {
   $('receiptChip').classList.toggle('show', !!receiptDate);
+  $('itemsChip').classList.toggle('show', receiptItems.length > 0);
+  if (receiptItems.length) $('itemsChipText').textContent = `商品${receiptItems.length}点：${itemsSummary(receiptItems)}`;
   if (receiptDate) $('receiptChipText').textContent = `レシートの日付 ${receiptDate.md}${receiptDate.time ? ' ' + receiptDate.time : ''} で記録します`;
 }
 function clearReceiptDate() { receiptDate = null; renderReceiptChip(); render(); }
+function clearReceiptItems() { receiptItems = []; renderReceiptChip(); }
 
 // ═══════════════════════════════════════════════
 //  リリースノート
@@ -2004,7 +2074,7 @@ Object.assign(window, {
   createHousehold, joinHousehold, leaveHousehold, shareCode,
   importLegacyFromDevice, hideLegacyBanner, exportData, openImportModal, closeImportModal, importFromFile, importFromText,
   closeRelease,
-  pickReceipt, onReceiptPicked, resetReceiptPaint, closeReceipt, sendReceipt, clearReceiptDate,
+  pickReceipt, onReceiptPicked, resetReceiptPaint, closeReceipt, sendReceipt, clearReceiptDate, clearReceiptItems, removeEditItem,
 });
 
 // 月が変わったとき（日付をまたいで開きっぱなし）に追従
