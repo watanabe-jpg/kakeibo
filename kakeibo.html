@@ -273,6 +273,15 @@
   .pay-row.need .pay-btn { border-color:var(--amber); color:var(--amber); background:var(--amber-dim); animation:payPulse 1.2s ease 2; }
   .pay-row.need + .pay-need { display:block; }
   @keyframes payPulse { 50% { transform:scale(1.04); } }
+  /* 現金／キャッシュレスの比率バー */
+  .pay-split { margin:10px 0 2px; display:none; }
+  .pay-split.show { display:block; }
+  .pay-split-bar { display:flex; height:8px; border-radius:4px; overflow:hidden; background:var(--border); }
+  .pay-split-bar span { height:100%; transition:width 0.4s; }
+  .pay-split-legend { display:flex; justify-content:space-between; gap:8px; font-size:11px; font-family:var(--mono); color:var(--text3); margin-top:5px; flex-wrap:wrap; }
+  .pay-split-legend b { font-weight:500; color:var(--text); }
+  .pay-split-legend .r { text-align:right; margin-left:auto; }
+  .pay-split-none { font-size:10px; color:var(--text3); font-family:var(--mono); margin-top:2px; text-align:center; }
   .pay-badge { font-size:10px; font-family:var(--sans); color:var(--text2); background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:0 5px; line-height:1.5; }
   .history-sub { font-size:11px; color:var(--text3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:210px; }
   .comment-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:16px; font-family:var(--sans); padding:8px 12px; outline:none; margin-bottom:10px; -webkit-appearance:none; resize:none; }
@@ -433,6 +442,11 @@
     </div>
     <div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
     <div class="stats-row" id="statsRow"></div>
+    <div class="pay-split" id="paySplit">
+      <div class="pay-split-bar"><span id="paySplitCash" style="background:#ffab40;width:0%"></span><span id="paySplitNone" style="background:var(--text3);width:0%"></span><span id="paySplitCless" style="background:#5b8dee;width:0%"></span></div>
+      <div class="pay-split-legend"><span id="paySplitCashLbl"></span><span class="r" id="paySplitClessLbl"></span></div>
+      <div class="pay-split-none" id="paySplitNoneLbl"></div>
+    </div>
     <div class="alert" id="alertBanner"></div>
 
     <!-- BREAKDOWN -->
@@ -650,7 +664,8 @@
     <div class="modal-title" id="releaseTitle"></div>
     <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <div style="background:rgba(0,168,84,0.08);border:1px solid var(--green);border-radius:8px;padding:8px 10px;">🆕 <b>支払方法（現金／キャッシュレス）を記録（v3.4.0）</b><br><span style="font-size:12px;color:var(--text3);">レシートを読み取ると、現金かキャッシュレス（クレジット・PayPay・Suica等）かも判定します。手入力のときは「支払い」のボタンで選べます。BREAKDOWNに支払方法別の合計を追加しました。</span></div>
+        <div style="background:rgba(0,168,84,0.08);border:1px solid var(--green);border-radius:8px;padding:8px 10px;">🆕 <b>現金とキャッシュレスの比率を表示（v3.5.0）</b><br><span style="font-size:12px;color:var(--text3);">残り枠の下に、その月の支出を現金・キャッシュレスに分けた横棒を追加しました。金額と割合を両方表示します（家族表示では家族全体）。</span></div>
+        <div>💳 <b>支払方法（現金／キャッシュレス）を記録（v3.4.0）</b><br><span style="font-size:12px;color:var(--text3);">レシートを読み取ると、現金かキャッシュレス（クレジット・PayPay・Suica等）かも判定します。手入力のときは「支払い」のボタンで選べます。BREAKDOWNに支払方法別の合計を追加しました。</span></div>
         <div>🛒 <b>買ったものとコメントを記録（v3.3.0）</b><br><span style="font-size:12px;color:var(--text3);">レシートを読み取ると、商品の明細も一緒に保存されます。入力欄と編集画面にコメント欄も追加しました。履歴の項目をタップすると明細とコメントを見られます（家族の記録も閲覧できます）。</span></div>
         <div>📷 <b>レシート読み取り（v3.2.0）</b><br><span style="font-size:12px;color:var(--text3);">「📷 レシートを読み取る」で撮影すると、合計金額・店名・日付が入力欄に入ります。送る前に、カード番号などが載った下の部分を切り取ったり、指でなぞって黒く塗ったりできます。写真は保存されません。</span></div>
         <div>👨‍👩‍👧 <b>固定費を家族で共有（v3.1.0）</b><br><span style="font-size:12px;color:var(--text3);">固定費タブに「家族共有」リストを追加しました。家族の誰が登録・変更しても全員の画面に即時反映されます。今までの個人の固定費は、項目をタップ→「家族共有に移す」で移せます。</span></div>
@@ -709,7 +724,7 @@ import {
   arrayUnion, arrayRemove,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const CURRENT_VERSION = 'v3.4.1';
+const CURRENT_VERSION = 'v3.5.0';
 
 // レシート読み取り用：App Check（Fraud Defense／旧称 reCAPTCHA Enterprise）のサイトキー
 // Google Cloud コンソールで作成し、Firebaseコンソール → App Check に登録した「サイトキー」を貼り付けてください（公開されて問題ない値です）
@@ -1148,6 +1163,7 @@ function render() {
     }).join(' &nbsp;');
   }
   $('statsRow').innerHTML = stats;
+  renderPaySplit(entries, spent);
 
   const alertEl = $('alertBanner');
   if (isCurrentMonth && remaining < 0) { alertEl.textContent=`⚠️ 上限を ${fmt(-remaining)} オーバーしています`; alertEl.className='alert over'; }
@@ -1279,6 +1295,21 @@ function payLabel(pay, detail) {
 function payButtons(cur, detail, fn, disabled) {
   return '<span class="pay-label">支払い</span>' + PAY_DEFS.map(p =>
     `<button class="pay-btn${cur===p.key?' active':''}" ${disabled?'disabled':''} onclick="${fn}('${p.key}')">${esc(cur===p.key ? payLabel(p.key, detail) : p.emoji + ' ' + p.label)}</button>`).join('');
+}
+// 表示中の月（家族表示なら家族全体）の支出を、現金／キャッシュレス／未設定に分けて横棒で表示
+function renderPaySplit(entries, spent) {
+  const t = { cash:0, cashless:0, '':0 };
+  entries.forEach(e => { t[cleanPay(e.pay)] += e.amount; });
+  $('paySplit').classList.toggle('show', spent > 0);
+  if (!(spent > 0)) return;
+  const pct = v => v / spent * 100;
+  const pctLabel = v => `${Math.round(pct(v))}%`;
+  $('paySplitCash').style.width = pct(t.cash) + '%';
+  $('paySplitNone').style.width = pct(t['']) + '%';
+  $('paySplitCless').style.width = pct(t.cashless) + '%';
+  $('paySplitCashLbl').innerHTML = `💴 現金 <b>${fmt(t.cash)}</b>（${pctLabel(t.cash)}）`;
+  $('paySplitClessLbl').innerHTML = `💳 キャッシュレス <b>${fmt(t.cashless)}</b>（${pctLabel(t.cashless)}）`;
+  $('paySplitNoneLbl').textContent = t[''] > 0 ? `未設定 ${fmt(t[''])}（${pctLabel(t[''])}）` : '';
 }
 function renderPayRow() {
   $('payRow').innerHTML = payButtons(selectedPay, selectedPayDetail, 'setPay', false);
