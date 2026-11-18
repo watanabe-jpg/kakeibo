@@ -265,6 +265,15 @@
   .receipt-chip { display:none; align-items:center; justify-content:space-between; gap:8px; background:rgba(0,168,84,0.08); border:1px solid var(--green); color:var(--green); border-radius:8px; font-size:12px; padding:6px 10px; margin-bottom:10px; }
   .receipt-chip.show { display:flex; }
   .receipt-chip button { background:none; border:none; color:var(--green); font-size:16px; line-height:1; padding:0 4px; cursor:pointer; -webkit-appearance:none; }
+  .pay-row { display:flex; align-items:center; gap:6px; margin-bottom:10px; }
+  .pay-label { font-size:10px; color:var(--text3); font-family:var(--mono); flex-shrink:0; width:30px; }
+  .pay-btn { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text3); font-size:12px; padding:6px 4px; cursor:pointer; -webkit-appearance:none; transition:all 0.15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pay-btn.active { border-color:var(--green); color:var(--green); background:rgba(0,168,84,0.08); }
+  .pay-need { display:none; font-size:12px; color:var(--amber); margin:-4px 0 10px; }
+  .pay-row.need .pay-btn { border-color:var(--amber); color:var(--amber); background:var(--amber-dim); animation:payPulse 1.2s ease 2; }
+  .pay-row.need + .pay-need { display:block; }
+  @keyframes payPulse { 50% { transform:scale(1.04); } }
+  .pay-badge { font-size:10px; font-family:var(--sans); color:var(--text2); background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:0 5px; line-height:1.5; }
   .history-sub { font-size:11px; color:var(--text3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:210px; }
   .comment-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:16px; font-family:var(--sans); padding:8px 12px; outline:none; margin-bottom:10px; -webkit-appearance:none; resize:none; }
   .comment-input:focus { border-color:var(--green); }
@@ -398,6 +407,8 @@
       </div>
       <input type="text" class="memo-input" id="memoInput" placeholder="どこで何を（例：セブン　コーヒー）" maxlength="40" oninput="renderQuickTags()">
       <input type="text" class="comment-input" id="commentInput" placeholder="💬 コメント（任意）例：来客用、誕生日のケーキ" maxlength="100">
+      <div class="pay-row" id="payRow"></div>
+      <div class="pay-need">👆 支払方法を読み取れませんでした。現金かキャッシュレスか選んでください</div>
       <div id="quickTags"></div>
       <div class="memo-cats" id="memoCats"></div>
       <button class="submit-btn" id="submitBtn" onclick="addExpense()">記録する</button>
@@ -594,6 +605,8 @@
       <label style="font-size:14px;color:var(--text2);display:block;margin-bottom:8px;">💬 コメント</label>
       <textarea class="comment-input" id="editComment" maxlength="100" rows="2" style="margin-bottom:0;" placeholder="あとで思い出すためのメモ（任意）"></textarea>
     </div>
+    <div class="modal-section-label">支払方法</div>
+    <div class="pay-row" id="editPayRow" style="margin-bottom:14px;"></div>
     <div id="editItemsBlock" style="display:none;">
       <div class="modal-section-label" id="editItemsLabel">🛒 買ったもの</div>
       <div class="item-list" id="editItems"></div>
@@ -637,7 +650,8 @@
     <div class="modal-title" id="releaseTitle"></div>
     <div style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <div style="background:rgba(0,168,84,0.08);border:1px solid var(--green);border-radius:8px;padding:8px 10px;">🆕 <b>買ったものとコメントを記録（v3.3.0）</b><br><span style="font-size:12px;color:var(--text3);">レシートを読み取ると、商品の明細も一緒に保存されます。入力欄と編集画面にコメント欄も追加しました。履歴の項目をタップすると明細とコメントを見られます（家族の記録も閲覧できます）。</span></div>
+        <div style="background:rgba(0,168,84,0.08);border:1px solid var(--green);border-radius:8px;padding:8px 10px;">🆕 <b>支払方法（現金／キャッシュレス）を記録（v3.4.0）</b><br><span style="font-size:12px;color:var(--text3);">レシートを読み取ると、現金かキャッシュレス（クレジット・PayPay・Suica等）かも判定します。手入力のときは「支払い」のボタンで選べます。BREAKDOWNに支払方法別の合計を追加しました。</span></div>
+        <div>🛒 <b>買ったものとコメントを記録（v3.3.0）</b><br><span style="font-size:12px;color:var(--text3);">レシートを読み取ると、商品の明細も一緒に保存されます。入力欄と編集画面にコメント欄も追加しました。履歴の項目をタップすると明細とコメントを見られます（家族の記録も閲覧できます）。</span></div>
         <div>📷 <b>レシート読み取り（v3.2.0）</b><br><span style="font-size:12px;color:var(--text3);">「📷 レシートを読み取る」で撮影すると、合計金額・店名・日付が入力欄に入ります。送る前に、カード番号などが載った下の部分を切り取ったり、指でなぞって黒く塗ったりできます。写真は保存されません。</span></div>
         <div>👨‍👩‍👧 <b>固定費を家族で共有（v3.1.0）</b><br><span style="font-size:12px;color:var(--text3);">固定費タブに「家族共有」リストを追加しました。家族の誰が登録・変更しても全員の画面に即時反映されます。今までの個人の固定費は、項目をタップ→「家族共有に移す」で移せます。</span></div>
         <div>☁️ <b>クラウド保存に移行</b><br><span style="font-size:12px;color:var(--text3);">データはアカウントに保存されるようになりました。ブラウザの自動削除や機種変更でも消えません。</span></div>
@@ -651,7 +665,7 @@
 
 <!-- レシート確認（送信前に切り取り・黒塗り） -->
 <div class="rc-overlay" id="rcOverlay">
-  <div class="rc-head">送る範囲を確認<span>オレンジの線より下は送信されません（線は上下に動かせます）<br>隠したい所は指でなぞると黒く塗れます</span></div>
+  <div class="rc-head">送る範囲を確認<span>オレンジの線より下は送信されません（線は上下に動かせます）<br>「お預り」「クレジット」など支払方法の行までは残し、カード番号の行は線の下へ<br>隠したい所は指でなぞると黒く塗れます</span></div>
   <div class="rc-stage" id="rcStage">
     <div class="rc-wrap" id="rcWrap">
       <canvas id="rcCanvas" width="1" height="1"></canvas>
@@ -695,7 +709,7 @@ import {
   arrayUnion, arrayRemove,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const CURRENT_VERSION = 'v3.3.0';
+const CURRENT_VERSION = 'v3.4.1';
 
 // レシート読み取り用：App Check（Fraud Defense／旧称 reCAPTCHA Enterprise）のサイトキー
 // Google Cloud コンソールで作成し、Firebaseコンソール → App Check に登録した「サイトキー」を貼り付けてください（公開されて問題ない値です）
@@ -951,6 +965,7 @@ function teardown() {
   pendingKeys.clear();
   myDoc = null; household = null; scope = 'me'; releaseChecked = false; legacyBannerHidden = false;
   receiptDate = null; receiptItems = []; $('receiptChip').classList.remove('show'); $('itemsChip').classList.remove('show');
+  selectedPay = ''; selectedPayDetail = ''; payNeeded = false;
 }
 
 // ═══════════════════════════════════════════════
@@ -1156,6 +1171,18 @@ function render() {
       <div class="breakdown-amount" style="color:${amt>0?'var(--text)':'var(--text3)'};">${amt>0?fmt(amt):'—'}</div>
     </div>`;
   }).join('');
+  {
+    const payTotals = { cash:0, cashless:0, '':0 };
+    entries.forEach(e => { payTotals[cleanPay(e.pay)] += e.amount; });
+    const rows = [ ...PAY_DEFS.map(p => ({ label:`${p.emoji} ${p.label}`, amt:payTotals[p.key] })),
+                   ...(payTotals[''] > 0 ? [{ label:'❔ 未設定', amt:payTotals[''] }] : []) ];
+    bd += '<div class="breakdown-sub">BY PAYMENT</div>' + rows.map(r => {
+      const share = spent > 0 && r.amt > 0 ? `${Math.round(r.amt / spent * 100)}%` : '';
+      return `<div class="breakdown-item" style="background:rgba(136,136,136,0.06);border-color:var(--border);">
+        <div class="breakdown-left"><div><div class="breakdown-label">${r.label}</div>${share?`<div class="breakdown-hint">${share}</div>`:''}</div></div>
+        <div class="breakdown-amount" style="color:${r.amt>0?'var(--text)':'var(--text3)'};">${r.amt>0?fmt(r.amt):'—'}</div></div>`;
+    }).join('');
+  }
   if (fam) {
     bd += '<div class="breakdown-sub">BY MEMBER</div>' + uids.map(u => {
       const amt = entries.filter(e=>e._uid===u).reduce((a,e)=>a+e.amount,0);
@@ -1185,7 +1212,7 @@ function render() {
       const commentLine = e.comment ? `<div class="history-sub">💬 ${esc(e.comment)}</div>` : '';
       return `<div class="history-item${tappable?'':' readonly'}" style="background:${c.bg};border-color:${c.border};" ${tappable?`onclick="openEditModal('${esc(e.id)}','${esc(e._uid)}')"`:''}>
         <div class="history-left">
-          <div class="history-cat" style="color:${c.color};">${badge}<span>${c.emoji} ${c.label} · ${esc(e.date||'—')} ${esc(e.time||'')}</span></div>
+          <div class="history-cat" style="color:${c.color};">${badge}<span>${c.emoji} ${c.label} · ${esc(e.date||'—')} ${esc(e.time||'')}</span>${cleanPay(e.pay) ? `<span class="pay-badge">${esc(payLabel(cleanPay(e.pay), e.payDetail))}</span>` : ''}</div>
           ${e.memo?`<div class="history-memo">${esc(e.memo)}</div>`:'<div class="history-memo" style="color:var(--text3)">—</div>'}
           ${itemLine}${commentLine}
         </div>
@@ -1215,6 +1242,7 @@ function addExpense() {
   const comment = $('commentInput').value.trim().slice(0, 100);
   if (comment) extra.comment = comment;
   if (receiptItems.length) extra.items = receiptItems;
+  if (selectedPay) { extra.pay = selectedPay; if (selectedPayDetail) extra.payDetail = selectedPayDetail; }
   fire(setDoc(ref, rd ? {
     amount:val, memo, catOverride:selectedMemoCat, category:'private', month:rd.ym, ts:rd.ts, date:rd.md, time:rd.time, ...extra,
   } : {
@@ -1223,6 +1251,7 @@ function addExpense() {
     time:`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`, ...extra,
   }), '記録');
   receiptDate = null; receiptItems = []; $('commentInput').value = ''; renderReceiptChip();
+  selectedPay = ''; selectedPayDetail = ''; payNeeded = false; renderPayRow();
   $('amountInput').value = '';
   $('memoInput').value = '';
   selectedMemoCat = 'auto';
@@ -1236,6 +1265,30 @@ function toggleBreakdown() {
   $('breakdownBody').classList.toggle('open');
   $('breakdownToggle').classList.toggle('open');
 }
+
+// ── 支払方法 ──  pay: 'cash' | 'cashless' | ''（未設定）、payDetail: 'クレジット' 'PayPay' など
+const PAY_DEFS = [ { key:'cash', label:'現金', emoji:'💴' }, { key:'cashless', label:'キャッシュレス', emoji:'💳' } ];
+let selectedPay = '', selectedPayDetail = '';
+let payNeeded = false;   // レシートで支払方法を読み取れなかったとき、選ぶよう促す
+let editingPay = '', editingPayDetail = '';
+function payLabel(pay, detail) {
+  const d = PAY_DEFS.find(p => p.key === pay);
+  if (!d) return '';
+  return `${d.emoji} ${pay === 'cashless' && detail ? detail : d.label}`;
+}
+function payButtons(cur, detail, fn, disabled) {
+  return '<span class="pay-label">支払い</span>' + PAY_DEFS.map(p =>
+    `<button class="pay-btn${cur===p.key?' active':''}" ${disabled?'disabled':''} onclick="${fn}('${p.key}')">${esc(cur===p.key ? payLabel(p.key, detail) : p.emoji + ' ' + p.label)}</button>`).join('');
+}
+function renderPayRow() {
+  $('payRow').innerHTML = payButtons(selectedPay, selectedPayDetail, 'setPay', false);
+  $('payRow').classList.toggle('need', payNeeded && !selectedPay);
+}
+function renderEditPayRow() { $('editPayRow').innerHTML = payButtons(editingPay, editingPayDetail, 'setEditPay', editingReadonly); }
+// もう一度押すと未設定に戻る。手で切り替えたらレシートの詳細（PayPay等）は外す
+function setPay(k) { if (selectedPay === k) { selectedPay = ''; } else { selectedPay = k; } selectedPayDetail = ''; payNeeded = false; renderPayRow(); }
+function setEditPay(k) { if (editingReadonly) return; if (editingPay === k) { editingPay = ''; } else { editingPay = k; } editingPayDetail = ''; renderEditPayRow(); }
+function cleanPay(v) { return PAY_DEFS.some(p => p.key === v) ? v : ''; }
 
 function itemsSummary(items) {
   const names = items.slice(0, 3).map(i => i.name).join('、');
@@ -1267,12 +1320,13 @@ function openEditModal(id, uid) {
   $('editMemo').value = entry.memo || '';
   $('editComment').value = entry.comment || '';
   editingItems = cleanItems(entry.items);
+  editingPay = cleanPay(entry.pay); editingPayDetail = editingPay === 'cashless' ? String(entry.payDetail || '') : '';
   editingMemoCat = entry.catOverride || 'auto';
   ['editAmount','editMemo','editComment'].forEach(k => { $(k).disabled = editingReadonly; });
   $('editSaveBtn').style.display = editingReadonly ? 'none' : '';
   $('editDeleteBtn').style.display = editingReadonly ? 'none' : '';
   $('editMemoCats').style.pointerEvents = editingReadonly ? 'none' : '';
-  renderEditMemoCats(); renderEditItems();
+  renderEditMemoCats(); renderEditItems(); renderEditPayRow();
   $('editOverlay').classList.add('open');
 }
 function closeEditModal(e) { if (e.target === $('editOverlay')) $('editOverlay').classList.remove('open'); }
@@ -1282,7 +1336,8 @@ function saveEdit() {
   if (!val || val <= 0) { $('editAmount').focus(); return; }
   // items は配列なので merge でも丸ごと置き換わる
   fire(setDoc(doc(expensesCol(), editingId), { amount:val, memo:$('editMemo').value.trim(), catOverride:editingMemoCat,
-    comment:$('editComment').value.trim().slice(0, 100), items:editingItems }, { merge:true }));
+    comment:$('editComment').value.trim().slice(0, 100), items:editingItems,
+    pay:editingPay, payDetail:editingPay === 'cashless' ? editingPayDetail : '' }, { merge:true }));
   $('editOverlay').classList.remove('open');
 }
 function deleteFromEdit() {
@@ -1314,7 +1369,7 @@ function shareLog() {
     `【残り枠ログ${fam?'（家族）':''}】${y}年${parseInt(m)}月`, '',
     `支払い上限：${fmt(limit)}`, `使用済：${fmt(spent)}`, `残り枠：${signed(limit-spent)}`, '',
     `── 明細 ──`,
-    ...entries.map(e=>`${e.date||'—'} ${e.time||''}　${fam?memberName(e._uid)+'　':''}${getCat(detectCat(e.memo,e.catOverride,userData(e._uid))).label}　${fmt(e.amount)}　${e.memo||''}`)
+    ...entries.map(e=>`${e.date||'—'} ${e.time||''}　${fam?memberName(e._uid)+'　':''}${getCat(detectCat(e.memo,e.catOverride,userData(e._uid))).label}　${fmt(e.amount)}　${e.memo||''}${cleanPay(e.pay)?'　['+payLabel(cleanPay(e.pay), e.payDetail).slice(3)+']':''}`)
   ];
   const text = lines.join('\n');
   if (navigator.share) navigator.share({ title:'残り枠ログ', text }).catch(()=>{});
@@ -1763,6 +1818,7 @@ async function importDataToCloud(d) {
           amount, memo:String(e.memo||'').slice(0,60), catOverride:e.catOverride||'auto', category:e.category||'private',
           month:m, ts, date:String(e.date||'—'), time:String(e.time||''),
           ...(e.comment ? { comment:String(e.comment).slice(0,100) } : {}), ...(cleanItems(e.items).length ? { items:cleanItems(e.items) } : {}),
+          ...(cleanPay(e.pay) ? { pay:cleanPay(e.pay), ...(e.payDetail ? { payDetail:String(e.payDetail).slice(0,12) } : {}) } : {}),
         }]);
       });
     });
@@ -1801,7 +1857,8 @@ async function exportData() {
     snap.docs.map(x => ({ id:x.id, ...x.data() })).sort((a,b)=>(b.ts||0)-(a.ts||0)).forEach(e => {
       (months[e.month] = months[e.month] || []).push({ id:e.ts, amount:e.amount, category:e.category||'private',
         memo:e.memo||'', catOverride:e.catOverride||'auto', date:e.date, time:e.time,
-        ...(e.comment ? { comment:e.comment } : {}), ...(Array.isArray(e.items) && e.items.length ? { items:e.items } : {}) });
+        ...(e.comment ? { comment:e.comment } : {}), ...(Array.isArray(e.items) && e.items.length ? { items:e.items } : {}),
+        ...(cleanPay(e.pay) ? { pay:e.pay, ...(e.payDetail ? { payDetail:e.payDetail } : {}) } : {}) });
     });
     const d = D();
     const json = JSON.stringify({ app:'kakeibo', ver:CURRENT_VERSION, exported:new Date().toISOString(),
@@ -1955,6 +2012,8 @@ async function askGemini(base64) {
     time: Schema.string(),
     category: Schema.enumString({ enum:CAT_DEFS.map(c => c.key) }),
     items: Schema.array({ items:Schema.object({ properties:{ name:Schema.string(), price:Schema.integer() } }) }),
+    payment: Schema.enumString({ enum:['cash', 'cashless', 'unknown'] }),
+    payment_detail: Schema.string(),
   } });
   const prompt = `これは日本のレシート（領収書）の写真です。一部は黒く塗りつぶされていたり、下が切り取られている場合があります。次の項目を読み取ってJSONで答えてください。今日は ${today()} です。
 - is_receipt: レシート・領収書として読み取れたら true。そうでなければ false
@@ -1963,6 +2022,8 @@ async function askGemini(base64) {
 - date: レシートの日付を YYYY-MM-DD で（和暦や2桁の年は西暦に直す）。不明なら空文字
 - time: レシートの時刻を HH:MM（24時間）で。不明なら空文字
 - items: 買った商品を上から順に。name は商品名を短く読みやすく（コード・記号・「※」「軽」などの印は省く）、price はその行の金額（円・整数。数量が複数ならその行の合計）。値引き・割引は name を「値引き」として price をマイナスに。小計・消費税・合計・お預り・お釣り・ポイントの行は入れない。読み取れない・写っていない場合は空の配列。最大40件
+- payment: 支払方法。「お預り」「現金」「お釣り」があれば cash。「クレジット」「カード」「電子マネー」「iD」「QUICPay」「交通系」「Suica」「PASMO」「nanaco」「WAON」「楽天Edy」「PayPay」「d払い」「楽天ペイ」「au PAY」「QR」「コード決済」「デビット」などがあれば cashless。判断できなければ unknown
+- payment_detail: cashless のときの種類を短く（例：クレジット、PayPay、Suica、iD、WAON）。分からなければ空文字。cash のときは空文字
 - category: convenience=コンビニ / super=スーパー・食料品・ドラッグストア / ec=ネット通販 / food=外食・カフェ / transit=交通・駐車場・ガソリン / other=その他`;
   let lastErr;
   for (const name of RECEIPT_MODELS) {
@@ -2031,12 +2092,18 @@ function applyReceipt(r) {
   if (detectCat(store, 'auto', D()) === 'other' && r.category && r.category !== 'other' && CAT_DEFS.some(c => c.key === r.category)) selectedMemoCat = r.category;
   receiptDate = parseReceiptDate(r.date, r.time);
   receiptItems = cleanItems(r.items).slice(0, 40);
+  selectedPay = cleanPay(r.payment);
+  selectedPayDetail = selectedPay === 'cashless' ? String(r.payment_detail || '').trim().slice(0, 12) : '';
+  payNeeded = !selectedPay;
+  renderPayRow();
   renderMemoCats(); renderQuickTags(); renderReceiptChip(); render();
   const miss = [];
   if (!(r.total > 0)) miss.push('金額');
   if (!receiptDate) miss.push('日付（今日の日付で記録します）');
+  if (!selectedPay) miss.push('支払方法（下のボタンで選べます）');
   toast(miss.length ? `読み取りました。${miss.join('・')}は読み取れませんでした` : '読み取りました。内容を確認して「記録する」を押してください', 4500);
   if (!(r.total > 0)) $('amountInput').focus();
+  else if (payNeeded) setTimeout(() => $('payRow').scrollIntoView({ behavior:'smooth', block:'center' }), 300);
 }
 function renderReceiptChip() {
   $('receiptChip').classList.toggle('show', !!receiptDate);
@@ -2074,7 +2141,7 @@ Object.assign(window, {
   createHousehold, joinHousehold, leaveHousehold, shareCode,
   importLegacyFromDevice, hideLegacyBanner, exportData, openImportModal, closeImportModal, importFromFile, importFromText,
   closeRelease,
-  pickReceipt, onReceiptPicked, resetReceiptPaint, closeReceipt, sendReceipt, clearReceiptDate, clearReceiptItems, removeEditItem,
+  pickReceipt, onReceiptPicked, resetReceiptPaint, closeReceipt, sendReceipt, clearReceiptDate, clearReceiptItems, removeEditItem, setPay, setEditPay,
 });
 
 // 月が変わったとき（日付をまたいで開きっぱなし）に追従
@@ -2086,6 +2153,7 @@ setInterval(() => { if (me && myDoc) { syncEntrySubs(); render(); } }, 60000);
 applyTheme('system');
 renderMemoCats();
 renderFcCats();
+renderPayRow();
 initReceiptUi();
 if (!CONFIGURED) {
   showGate('auth');
